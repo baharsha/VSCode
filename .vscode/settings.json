@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/389cf369-ba52-43a8-aed8-9c2bf3c7c58c/resourceGroups/appsvc_linux_swedencentral_basic/providers/Microsoft.Web/sites/Carbon-Webapp",
+    "appService.deploySubpath": "Consolidated"
+}

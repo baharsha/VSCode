@@ -1,0 +1,7 @@
+streamlit
+pandas
+plotly
+requests
+azure-identity
+azure-mgmt-monitor
+azure-mgmt-resource
