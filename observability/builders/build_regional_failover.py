@@ -141,6 +141,19 @@ LAT = [{"color": "green", "value": None}, {"color": "yellow", "value": 5000},
 NEUTRAL = [{"color": "blue", "value": None}]
 THROTTLE = [{"color": "green", "value": None}, {"color": "orange", "value": 1}]
 
+
+def dlink(field, title, uid, slug, var, width=None):
+    """Data link on a table field: click a value, land on another dashboard
+    filtered to it, carrying the current time range."""
+    props = [{"id": "links", "value": [{
+        "title": title,
+        "url": f"/d/{uid}/{slug}?var-{var}=${{__value.text}}&${{__url_time_range}}",
+        "targetBlank": False}]}]
+    if width:
+        props.append({"id": "custom.width", "value": width})
+    return {"matcher": {"id": "byName", "options": field}, "properties": props}
+
+
 panels = []
 
 # ================= ROUTING AT A GLANCE =================
@@ -240,7 +253,8 @@ panels.append(table(
     "| project Deployment, Calls, Routing, ['Failover %'], Primary, ['East US 2'], ['West Europe'], ['Error %'], P95\n"
     "| order by Calls desc",
     {"h": 13, "w": 24, "x": 0, "y": 26},
-    [w("Deployment", 330), grad("Calls", NEUTRAL, "short", 0, 110),
+    [dlink("Deployment", "Gateway health for this deployment", "genai-model-operations", "genai-hub-model-operations", "deployment", width=330),
+     grad("Calls", NEUTRAL, "short", 0, 110),
      gaugecell("Failover %", FAILOVER),
      grad("East US 2", [{"color": "orange", "value": None}], "short", 0, 110),
      grad("West Europe", [{"color": "purple", "value": None}], "short", 0, 120),
@@ -324,7 +338,8 @@ consumer_panels = [
           "| project Consumer, Product, Calls, ['Failover %'], Failover, ['West Europe'], P95\n"
           "| order by Calls desc",
           {"h": 11, "w": 24, "x": 0, "y": 61},
-          [w("Consumer", 280), w("Product", 300), grad("Calls", NEUTRAL, "short", 0, 110),
+          [dlink("Consumer", "Gateway health for this consumer", "genai-model-operations", "genai-hub-model-operations", "consumer", width=280),
+           w("Product", 300), grad("Calls", NEUTRAL, "short", 0, 110),
            gaugecell("Failover %", FAILOVER), grad("P95", LAT, "ms", 0, 100)],
           sort_col="Calls"),
 

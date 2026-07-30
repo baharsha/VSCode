@@ -1425,6 +1425,16 @@
             },
             "properties": [
               {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Gateway health for this deployment",
+                    "url": "/d/genai-model-operations/genai-hub-model-operations?var-deployment=${__value.text}&${__url_time_range}",
+                    "targetBlank": false
+                  }
+                ]
+              },
+              {
                 "id": "custom.width",
                 "value": 330
               }
@@ -2497,6 +2507,16 @@
                   "options": "Consumer"
                 },
                 "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "Gateway health for this consumer",
+                        "url": "/d/genai-model-operations/genai-hub-model-operations?var-consumer=${__value.text}&${__url_time_range}",
+                        "targetBlank": false
+                      }
+                    ]
+                  },
                   {
                     "id": "custom.width",
                     "value": 280

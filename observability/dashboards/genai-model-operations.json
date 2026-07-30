@@ -861,6 +861,16 @@
             },
             "properties": [
               {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Routing and failover for this deployment",
+                    "url": "/d/genai-regional-failover/genai-hub-regional-failover-and-routing?var-deployment=${__value.text}&${__url_time_range}",
+                    "targetBlank": false
+                  }
+                ]
+              },
+              {
                 "id": "custom.width",
                 "value": 340
               }
@@ -1636,8 +1646,18 @@
                 },
                 "properties": [
                   {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "Routing and failover for this deployment",
+                        "url": "/d/genai-regional-failover/genai-hub-regional-failover-and-routing?var-deployment=${__value.text}&${__url_time_range}",
+                        "targetBlank": false
+                      }
+                    ]
+                  },
+                  {
                     "id": "custom.width",
-                    "value": 340
+                    "value": 300
                   }
                 ]
               }

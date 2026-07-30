@@ -133,6 +133,19 @@ LAT = [{"color": "green", "value": None}, {"color": "yellow", "value": 5000},
 NEUTRAL = [{"color": "blue", "value": None}]
 BROKEN = [{"color": "green", "value": None}, {"color": "red", "value": 1}]
 
+
+def dlink(field, title, uid, slug, var, width=None):
+    """Data link on a table field: click a value, land on another dashboard
+    filtered to it, carrying the current time range."""
+    props = [{"id": "links", "value": [{
+        "title": title,
+        "url": f"/d/{uid}/{slug}?var-{var}=${{__value.text}}&${{__url_time_range}}",
+        "targetBlank": False}]}]
+    if width:
+        props.append({"id": "custom.width", "value": width})
+    return {"matcher": {"id": "byName", "options": field}, "properties": props}
+
+
 panels = []
 
 # ================= KPI ROW =================
@@ -189,8 +202,9 @@ panels.append(table(
         gauge_override("Availability", AVAIL),
         color_bg("P95", LAT, "ms", 0),
         color_bg("P50", LAT, "ms", 0),
-        {"matcher": {"id": "byName", "options": "Deployment"},
-         "properties": [{"id": "custom.width", "value": 340}]},
+        dlink("Deployment", "Routing and failover for this deployment",
+              "genai-regional-failover", "genai-hub-regional-failover-and-routing",
+              "deployment", width=340),
     ]))
 
 # ================= TRAFFIC & RELIABILITY =================
@@ -262,8 +276,9 @@ token_panels = [
                              [{"color": "red", "value": None}, {"color": "orange", "value": 5},
                               {"color": "yellow", "value": 20}, {"color": "green", "value": 40}]),
               gauge_override("Streaming %", [{"color": "blue", "value": None}], decimals=1),
-              {"matcher": {"id": "byName", "options": "Deployment"},
-               "properties": [{"id": "custom.width", "value": 340}]},
+dlink("Deployment", "Routing and failover for this deployment",
+                    "genai-regional-failover", "genai-hub-regional-failover-and-routing",
+                    "deployment", width=300),
           ]),
 ]
 panels.append(row("Token Economics", {"h": 1, "w": 24, "x": 0, "y": 37},

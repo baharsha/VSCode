@@ -174,6 +174,19 @@ SHARE = [{"color": "blue", "value": None}, {"color": "orange", "value": 25},
 OUTR = [{"color": "green", "value": None}, {"color": "yellow", "value": 5},
         {"color": "orange", "value": 15}]
 
+
+def dlink(field, title, uid, slug, var, width=None):
+    """Data link on a table field: click a value, land on another dashboard
+    filtered to it, carrying the current time range."""
+    props = [{"id": "links", "value": [{
+        "title": title,
+        "url": f"/d/{uid}/{slug}?var-{var}=${{__value.text}}&${{__url_time_range}}",
+        "targetBlank": False}]}]
+    if width:
+        props.append({"id": "custom.width", "value": width})
+    return {"matcher": {"id": "byName", "options": field}, "properties": props}
+
+
 panels = []
 
 # ================= AT A GLANCE =================
@@ -262,7 +275,8 @@ panels.append(table("Model Consumption Detail",
                     "| project Model, Total, Prompt, Completion, ['Output %'], Products, Regions\n"
                     "| order by Total desc",
                     {"h": 11, "w": 24, "x": 0, "y": 39},
-                    [w("Model", 340), grad("Total", BLUE, "short", 0, 130),
+                    [dlink("Model", "Gateway health for this deployment", "genai-model-operations", "genai-hub-model-operations", "deployment", width=340),
+                     grad("Total", BLUE, "short", 0, 130),
                      gaugecell("Output %", OUTR, mx=25)],
                     sort_col="Total"))
 
@@ -328,7 +342,8 @@ Azure Cost Management remains the source of truth.
           "| project Model, ['Total cost'], ['Input cost'], ['Output cost'], ['Cost per 1M'], Tokens, ['Rate set']\n"
           "| order by Tokens desc",
           {"h": 11, "w": 24, "x": 0, "y": 59},
-          [w("Model", 340), grad("Total cost", GREEN, "currencyEUR", 2, 130),
+          [dlink("Model", "Gateway health for this deployment", "genai-model-operations", "genai-hub-model-operations", "deployment", width=340),
+           grad("Total cost", GREEN, "currencyEUR", 2, 130),
            grad("Tokens", BLUE, "short", 0, 130),
            {"matcher": {"id": "byName", "options": "Rate set"}, "properties": [
                {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "basic"}},
@@ -359,7 +374,8 @@ region_panels = [
           "| project Consumer, Product, Total, Prompt, Completion, Models\n"
           "| order by Total desc",
           {"h": 9, "w": 8, "x": 16, "y": 51},
-          [w("Consumer", 260), grad("Total", BLUE, "short", 0, 120)],
+          [dlink("Consumer", "Gateway health for this consumer", "genai-model-operations", "genai-hub-model-operations", "consumer", width=260),
+           grad("Total", BLUE, "short", 0, 120)],
           sort_col="Total"),
 ]
 panels.append(row("Region, API and Consumer Detail", {"h": 1, "w": 24, "x": 0, "y": 50},

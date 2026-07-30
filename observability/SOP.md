@@ -391,3 +391,57 @@ All three grains must return the same total. They did at build time: **EUR 122,7
 ## 9. Caveat on verification performed
 
 Every dashboard was validated by executing its queries through Grafana's `/api/ds/query` endpoint — query correctness and row counts are confirmed. **Rendered pages were not visually inspected**, because the browser tooling available hits an Entra ID sign-in that could not be completed. If a panel renders unexpectedly, the query is verified but the visualisation config may need adjustment.
+
+---
+
+## 10. Drilldown navigation
+
+**Grafana Drilldown apps (Logs/Metrics/Traces) do not work on this instance.** The nav
+entry appears because it is core to Grafana 12, and Azure Managed Grafana bundles the
+Loki/Prometheus/Tempo/Pyroscope plugins — but only **one datasource is configured**
+(Azure Monitor), and Azure Monitor Logs is not a supported Drilldown backend. Opening
+Drilldown will show nothing to explore.
+
+To make Metrics Drilldown usable you would need an Azure Monitor Workspace linked to
+Grafana (`grafanaIntegrations.azureMonitorWorkspaceIntegrations` is currently empty)
+and Managed Prometheus scraping. That is an AKS-shaped path; GenAI Hub runs Container
+Apps, and it would not cover APIM or model telemetry.
+
+### What is implemented instead: panel data links
+
+Click a value in a table, land on another dashboard filtered to it, carrying the
+current time range.
+
+| From | Field | To | Passes |
+|---|---|---|---|
+| Model Operations → Model Deployment Health | Deployment | Regional Failover | `var-deployment` |
+| Model Operations → Token Economics by Deployment | Deployment | Regional Failover | `var-deployment` |
+| Regional Failover → Deployment Routing Matrix | Deployment | Model Operations | `var-deployment` |
+| Regional Failover → Consumer Exposure to Failover | Consumer | Model Operations | `var-consumer` |
+| Token Chargeback → Model Consumption Detail | Model | Model Operations | `var-deployment` |
+| Token Chargeback → Estimated Cost by Model | Model | Model Operations | `var-deployment` |
+| Token Chargeback → Consumer Detail | Consumer | Model Operations | `var-consumer` |
+
+URL pattern, via the `dlink()` helper in each builder:
+
+```
+/d/<uid>/<slug>?var-<name>=${__value.text}&${__url_time_range}
+```
+
+### Value-space caveat (verified 2026-07-30)
+
+A drilldown is only useful if the value exists on the target dashboard. Measured overlap
+over a 2-day window:
+
+| Identifier | In both | Gateway only | AppMetrics only |
+|---|---|---|---|
+| Deployment name | 26 | 7 | 3 |
+| Consumer / subscription ID | 18 | 6 | 1 |
+
+Model Operations ↔ Regional Failover links are **exact** — both derive from
+`GatewayLogs`. Chargeback links come from `AppMetrics`, so the 3 AppMetrics-only
+deployments will land on an empty Model Operations view. That is truthful (there is no
+gateway traffic under that name), not a bug.
+
+**Before adding a new drilldown, measure the overlap first.** A link that lands on an
+empty dashboard is worse than no link.
