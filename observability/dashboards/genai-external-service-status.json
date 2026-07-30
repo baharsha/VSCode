@@ -1007,7 +1007,7 @@
     {
       "type": "table",
       "title": "All models \u2014 searchable status",
-      "description": "Every model with live status and availability. Use the column filters or sort instead of scrolling the provider sections below. Shares its data with the status tiles, so it costs no additional query.",
+      "description": "Every model with its current status and availability. Type in a column filter or click a heading to sort - use this instead of scrolling the provider sections below. 'Availability' is the share of requests not failing; blank means the model has had no recent traffic.",
       "datasource": {
         "type": "datasource",
         "uid": "-- Dashboard --"
@@ -1055,12 +1055,93 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Model"
+              "options": "TileName"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Model"
+              },
+              {
+                "id": "custom.width",
+                "value": 300
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "HealthScore"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TileColor"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 260
+                "value": 200
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "Operational": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "Minor degradation": {
+                        "color": "yellow",
+                        "index": 1
+                      },
+                      "Degraded performance": {
+                        "color": "orange",
+                        "index": 2
+                      },
+                      "Major service disruption": {
+                        "color": "red",
+                        "index": 3
+                      },
+                      "Unavailable": {
+                        "color": "dark-red",
+                        "index": 4
+                      },
+                      "No recent traffic": {
+                        "color": "text",
+                        "index": 5
+                      }
+                    }
+                  }
+                ]
               }
             ]
           },
@@ -1072,7 +1153,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "Availability %"
+                "value": "Availability"
               },
               {
                 "id": "unit",
@@ -1080,7 +1161,7 @@
               },
               {
                 "id": "decimals",
-                "value": 3
+                "value": 2
               },
               {
                 "id": "custom.cellOptions",
@@ -1115,7 +1196,11 @@
               },
               {
                 "id": "custom.width",
-                "value": 150
+                "value": 130
+              },
+              {
+                "id": "noValue",
+                "value": "not used recently"
               }
             ]
           },
@@ -1126,27 +1211,80 @@
             },
             "properties": [
               {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-background",
-                  "mode": "gradient"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "blue",
-                      "value": null
-                    }
-                  ]
-                }
+                "id": "displayName",
+                "value": "Requests (24h)"
               },
               {
                 "id": "custom.width",
-                "value": 130
+                "value": 140
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Failures"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Failed requests"
+              },
+              {
+                "id": "custom.width",
+                "value": 140
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ProvisionedDeployments"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Endpoints ready"
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "NotReadyDeployments"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Endpoints not ready"
+              },
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "LastCall"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Last used"
+              },
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              },
+              {
+                "id": "custom.width",
+                "value": 180
               }
             ]
           }
@@ -1164,8 +1302,8 @@
         },
         "sortBy": [
           {
-            "displayName": "Requests",
-            "desc": true
+            "displayName": "Model",
+            "desc": false
           }
         ]
       }

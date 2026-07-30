@@ -580,6 +580,41 @@ It reads the **same shared panel result** (id 9000) via the `-- Dashboard --` da
 adds a searchable view at **zero query cost**. Prefer this pattern over adding template
 variables — the per-model tiles are static panels and a variable cannot hide them.
 
+
+### Viewers cannot inspect anything — the page must stand alone
+
+Consumers hold Viewer access. They cannot open a panel's query, use Explore, or follow a
+link to an internal dashboard. Everything therefore has to be legible from the rendered
+page alone.
+
+Rules for any change to this dashboard:
+
+1. **No dashboard-level link dropdown.** A `links` entry tagged `genai-hub` would advertise
+   every internal dashboard (cost, security posture, chargeback) to the whole company.
+   This page must keep `links: []`. Audited: currently clean.
+2. **No panel data links.** Drilldowns added elsewhere must not be copied here — they lead
+   to dashboards consumers cannot open.
+3. **No raw column names or internal identifiers** in any visible label, title or
+   description. Audited: clean.
+4. **Hide plumbing columns.** The shared status panel (id 9000) emits `HealthScore` and
+   `TileColor` (raw hex like `#299C46`) to drive the tiles. Any table reading that panel
+   **must** hide both — they render as meaningless codes to someone who cannot inspect the
+   query. `TileName` should display as `Model`, `AvailabilityPct` as `Availability`, and so on.
+5. **Use `noValue` text, not blanks.** An empty availability cell reads as broken; it now
+   says "not used recently".
+
+Verification sweep before deploying a change to this page:
+
+```bash
+# expect: no dashboard links, no panel links, no technical labels
+python3 - <<'PY'
+import json,re
+d=json.load(open('genai-external-service-status.json'))
+print('dashboard links:', d.get('links'))
+tech=re.compile(r'TileColor|HealthScore|TileName|_CL\b|_s\b|responseCode|apiId', re.I)
+PY
+```
+
 ### Still open for this page
 
 - An onboarding pointer — new users land here first and there is nothing telling them how
