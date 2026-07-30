@@ -206,14 +206,20 @@ def dlink(field, title, uid, slug, var, width=None):
 # Token volumes taken from BILLED QUANTITIES, so every model family is covered
 # including Anthropic. Unit is inferred from price magnitude: Azure quotes some
 # meters per 1K tokens and some per 1M, and the meter name does not reliably say
-# which. A unit price >= 0.1 EUR means the unit is 1M tokens. Verified: derived
-# prices cluster at ~4.24-4.29 EUR/1M for Opus and 2.54 for Sonnet.
+# which. The unit is derived from the meter NAME, not from price magnitude - a
+# price-threshold rule breaks on genuinely cheap meters (cached input, nano
+# models) whose real per-1M price is under 0.1 EUR. Verified: cache read lands
+# at ~10% of input for every family, and output at ~5x input for Claude.
 BILLED_TOKENS = """let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);
 GenAIModelCost_CL
 | where ScanId == Latest and Grain == 'Monthly'
 | where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')
 | where UsageQuantity > 0
-| extend Unit = iff(Cost / UsageQuantity >= 0.1, 1000000.0, 1000.0)
+| extend Unit = case(
+    Meter has '1M Tokens',        1000000.0,   // OpenAI meters state the unit
+    Meter has 'paygo-inference-', 1000.0,      // older Anthropic plans quote per 1K
+    Meter has 'paygo-inf',        1000000.0,   // newer Anthropic plans quote per 1M
+    1000.0)
 | extend Tokens = UsageQuantity * Unit
 | extend TokenType = case(
     Meter has 'cache-hit' or Meter has 'cchd' or Meter has 'cached' or Meter has ' cd ' or Meter has 'Cd Inp', 'Cache read',
@@ -292,15 +298,23 @@ panels.append(row("Model Economics", {"h": 1, "w": 24, "x": 0, "y": 28}))
 panels.append(bar("Tokens by Model (OpenAI family)",
                   "Tokens per deployment from AppMetrics. Anthropic models are absent - see the billed-token panel for those.",
                   BASE + FILT + "| summarize Tokens=sum(Sum) by Model\n| top 15 by Tokens desc",
-                  "short", {"h": 10, "w": 10, "x": 0, "y": 29}))
+                  "short", {"h": 10, "w": 12, "x": 0, "y": 29}))
+
+
+panels.append(bar(
+    "Tokens by Model (all families, billed)",
+    "Total billed token volume per model family, Anthropic included. Sourced from billed quantities, so this is the companion to the OpenAI-family chart on the left, which cannot show Claude. For Anthropic each family IS the model; for OpenAI, billing groups deployments into one family.",
+    BILLED_TOKENS +
+    "| summarize Tokens = sum(Tokens) by ['Model family'] = MeterSubCategory\n"
+    "| order by Tokens desc",
+    "short", {"h": 10, "w": 12, "x": 12, "y": 29}))
 
 panels.append(ts("Input vs Output Tokens Over Time",
                  "Prompt against completion tokens. Divergence matters: output tokens are priced far higher, so a rising completion line raises cost faster than the volume implies.",
                  BASE + FILT +
                  "| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens') by bin(TimeGenerated, 1h)\n"
                  "| order by TimeGenerated asc",
-                 "short", {"h": 10, "w": 14, "x": 10, "y": 29}))
-
+                 "short", {"h": 9, "w": 24, "x": 0, "y": 39}))
 panels.append(table(
     "Billed Token Volume by Model Family (all models)",
     "Exact token volumes for EVERY model family including Anthropic, taken from billed quantities rather than logs. This is the only accurate source of Claude token counts - GatewayLlmLogs never populates completion or cached tokens. Monthly grain, so it does not follow fine time ranges.",
@@ -441,6 +455,36 @@ def var(name, label, query, desc):
             "current": {"selected": True, "text": ["All"], "value": ["$__all"]},
             "options": [], "sort": 1, "hide": 0}
 
+
+
+def reflow(ps):
+    """Assign gridPos top-down/left-right so panels cannot overlap.
+    Rows span full width and reset the cursor; everything else packs by width."""
+    y = 0
+    x = 0
+    row_h = 0
+    for p in ps:
+        g = p.setdefault("gridPos", {"h": 8, "w": 12, "x": 0, "y": 0})
+        if p["type"] == "row":
+            if x:
+                y += row_h
+                x = 0
+                row_h = 0
+            g.update({"h": 1, "w": 24, "x": 0, "y": y})
+            y += 1
+            continue
+        if x + g["w"] > 24:
+            y += row_h
+            x = 0
+            row_h = 0
+        g["x"] = x
+        g["y"] = y
+        x += g["w"]
+        row_h = max(row_h, g["h"])
+    return ps
+
+
+panels = reflow(panels)
 
 dashboard = {
     "uid": "genai-token-chargeback",

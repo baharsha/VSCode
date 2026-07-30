@@ -352,17 +352,30 @@ rows at all.
 **1K** tokens and others per **1M**, and the meter name does not reliably say which -
 `paygo-inf-*` meters are per-1M while older `paygo-inference-*` meters are per-1K.
 
-Infer the unit from price magnitude:
+Derive the unit from the meter **name**, not from price magnitude:
 
 ```kusto
-| extend Unit = iff(Cost / UsageQuantity >= 0.1, 1000000.0, 1000.0)
+| extend Unit = case(
+    Meter has '1M Tokens',        1000000.0,   // OpenAI meters state the unit
+    Meter has 'paygo-inference-', 1000.0,      // older Anthropic plans quote per 1K
+    Meter has 'paygo-inf',        1000000.0,   // newer Anthropic plans quote per 1M
+    1000.0)
 | extend Tokens = UsageQuantity * Unit
 ```
 
-Validate after any change by checking derived `EUR per 1M` clusters sensibly - Opus
-variants land at ~4.24-4.29, Sonnet at ~2.54. A naive rule keyed on the meter name
-produced 453 **billion** tokens for Claude Opus 4.5 against EUR 1,945 of spend, which
-is off by three orders of magnitude.
+Two wrong rules were tried first, both of which produced plausible-looking but badly
+incorrect output:
+
+- Keying naively on the word `tokens` gave **453 billion** tokens for Claude Opus 4.5
+  against EUR 1,945 of spend - off by three orders of magnitude.
+- Inferring from price magnitude (`>= 0.1 EUR/unit means per-1M`) looked right for the
+  major models but broke on genuinely cheap meters whose real per-1M price is *below*
+  EUR 0.10 - cached input and nano models. It reported GPT-5 cache reads at
+  **EUR 23.12 per 1M**, more expensive than uncached input.
+
+**Validation rule:** after any change, check that derived rates behave sensibly -
+cache read should land near **10% of input** for every family, and Claude output near
+**5x input**. If cache read comes out more expensive than input, the unit is wrong.
 
 This is monthly grain, so it does not follow fine time ranges.
 

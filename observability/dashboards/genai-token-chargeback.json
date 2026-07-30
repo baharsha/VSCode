@@ -1007,7 +1007,7 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 10,
+        "w": 12,
         "x": 0,
         "y": 29
       },
@@ -1077,6 +1077,85 @@
       }
     },
     {
+      "type": "barchart",
+      "title": "Tokens by Model (all families, billed)",
+      "description": "Total billed token volume per model family, Anthropic included. Sourced from billed quantities, so this is the companion to the OpenAI-family chart on the left, which cannot show Claude. For Anthropic each family IS the model; for OpenAI, billing groups deployments into one family.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 29
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Monthly'\n| where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')\n| where UsageQuantity > 0\n| extend Unit = case(\n    Meter has '1M Tokens',        1000000.0,   // OpenAI meters state the unit\n    Meter has 'paygo-inference-', 1000.0,      // older Anthropic plans quote per 1K\n    Meter has 'paygo-inf',        1000000.0,   // newer Anthropic plans quote per 1M\n    1000.0)\n| extend Tokens = UsageQuantity * Unit\n| extend TokenType = case(\n    Meter has 'cache-hit' or Meter has 'cchd' or Meter has 'cached' or Meter has ' cd ' or Meter has 'Cd Inp', 'Cache read',\n    Meter has 'cache-write' or Meter has 'Cd Wr', 'Cache write',\n    Meter has 'output' or Meter has ' opt ' or Meter has 'Outp' or Meter has 'outpt', 'Output',\n    Meter has 'input' or Meter has ' inp ' or Meter has 'Inp', 'Input', 'Other')\n| where TokenType != 'Other'\n| summarize Tokens = sum(Tokens) by ['Model family'] = MeterSubCategory\n| order by Tokens desc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 85,
+            "gradientMode": "hue",
+            "axisPlacement": "auto",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100,
+        "showValue": "auto",
+        "stacking": "none",
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
       "type": "timeseries",
       "title": "Input vs Output Tokens Over Time",
       "description": "Prompt against completion tokens. Divergence matters: output tokens are priced far higher, so a rising completion line raises cost faster than the volume implies.",
@@ -1085,10 +1164,10 @@
         "uid": "azure-monitor-oob"
       },
       "gridPos": {
-        "h": 10,
-        "w": 14,
-        "x": 10,
-        "y": 29
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 39
       },
       "targets": [
         {
@@ -1172,7 +1251,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 48
       },
       "targets": [
         {
@@ -1185,7 +1264,7 @@
           "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
           "subscriptions": [],
           "azureLogAnalytics": {
-            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Monthly'\n| where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')\n| where UsageQuantity > 0\n| extend Unit = iff(Cost / UsageQuantity >= 0.1, 1000000.0, 1000.0)\n| extend Tokens = UsageQuantity * Unit\n| extend TokenType = case(\n    Meter has 'cache-hit' or Meter has 'cchd' or Meter has 'cached' or Meter has ' cd ' or Meter has 'Cd Inp', 'Cache read',\n    Meter has 'cache-write' or Meter has 'Cd Wr', 'Cache write',\n    Meter has 'output' or Meter has ' opt ' or Meter has 'Outp' or Meter has 'outpt', 'Output',\n    Meter has 'input' or Meter has ' inp ' or Meter has 'Inp', 'Input', 'Other')\n| where TokenType != 'Other'\n| summarize Input=sum(iff(TokenType=='Input', Tokens, 0.0)),\n            Output=sum(iff(TokenType=='Output', Tokens, 0.0)),\n            ['Cache read']=sum(iff(TokenType=='Cache read', Tokens, 0.0)),\n            ['Cache write']=sum(iff(TokenType=='Cache write', Tokens, 0.0)),\n            ['Cost EUR']=round(sum(Cost), 2) by ['Model family']=MeterSubCategory\n| extend Total = Input + Output + ['Cache read'] + ['Cache write']\n| project ['Model family'], Total, Input, Output, ['Cache read'], ['Cache write'], ['Cost EUR']\n| order by ['Cost EUR'] desc",
+            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Monthly'\n| where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')\n| where UsageQuantity > 0\n| extend Unit = case(\n    Meter has '1M Tokens',        1000000.0,   // OpenAI meters state the unit\n    Meter has 'paygo-inference-', 1000.0,      // older Anthropic plans quote per 1K\n    Meter has 'paygo-inf',        1000000.0,   // newer Anthropic plans quote per 1M\n    1000.0)\n| extend Tokens = UsageQuantity * Unit\n| extend TokenType = case(\n    Meter has 'cache-hit' or Meter has 'cchd' or Meter has 'cached' or Meter has ' cd ' or Meter has 'Cd Inp', 'Cache read',\n    Meter has 'cache-write' or Meter has 'Cd Wr', 'Cache write',\n    Meter has 'output' or Meter has ' opt ' or Meter has 'Outp' or Meter has 'outpt', 'Output',\n    Meter has 'input' or Meter has ' inp ' or Meter has 'Inp', 'Input', 'Other')\n| where TokenType != 'Other'\n| summarize Input=sum(iff(TokenType=='Input', Tokens, 0.0)),\n            Output=sum(iff(TokenType=='Output', Tokens, 0.0)),\n            ['Cache read']=sum(iff(TokenType=='Cache read', Tokens, 0.0)),\n            ['Cache write']=sum(iff(TokenType=='Cache write', Tokens, 0.0)),\n            ['Cost EUR']=round(sum(Cost), 2) by ['Model family']=MeterSubCategory\n| extend Total = Input + Output + ['Cache read'] + ['Cache write']\n| project ['Model family'], Total, Input, Output, ['Cache read'], ['Cache write'], ['Cost EUR']\n| order by ['Cost EUR'] desc",
             "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
             "resultFormat": "table",
             "dashboardTime": true,
@@ -1496,7 +1575,7 @@
         "h": 11,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 60
       },
       "targets": [
         {
@@ -1682,7 +1761,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 71
       },
       "collapsed": false,
       "panels": []
@@ -1694,7 +1773,7 @@
         "h": 10,
         "w": 7,
         "x": 0,
-        "y": 50
+        "y": 72
       },
       "options": {
         "mode": "markdown",
@@ -1713,7 +1792,7 @@
         "h": 10,
         "w": 17,
         "x": 7,
-        "y": 50
+        "y": 72
       },
       "targets": [
         {
@@ -1920,7 +1999,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 60
+        "y": 82
       },
       "targets": [
         {
@@ -2049,7 +2128,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 60
+        "y": 82
       },
       "targets": [
         {
@@ -2185,7 +2264,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 92
       },
       "collapsed": true,
       "panels": [
