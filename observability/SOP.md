@@ -512,3 +512,50 @@ gateway traffic under that name), not a bug.
 
 **Before adding a new drilldown, measure the overlap first.** A link that lands on an
 empty dashboard is worse than no link.
+
+## 11. External Service Status — consumer-facing page
+
+Audience is every GenAI Hub user, not the platform team. Two rules follow from that.
+
+### Keep provider detail collapsed
+
+The page carried **96 panels firing 82 Log Analytics queries every 5 minutes, per open
+tab** — roughly 984 queries/hour per viewer, before multiplying by audience size.
+
+Grafana does not execute queries inside a **collapsed** row until it is expanded. The seven
+per-provider model sections (67 stat tiles) are therefore collapsed by default:
+
+| | Before | After |
+|---|---|---|
+| Panels on first load | 86 | 20 |
+| Queries on first load | 82 | 16 |
+
+Nothing is hidden — each row header states its model count and expands in one click. **If
+you add provider tiles, add them inside a collapsed row.** Uncollapsing these sections
+multiplies query load across every concurrent viewer.
+
+### Lead with a plain-language answer
+
+Most visitors want one thing: *can I use it right now?* The full-width banner at the top
+answers that in a sentence ("All services operating normally", "Degraded — some requests
+are failing, retries advised") rather than as a percentage. Availability figures stay
+below for people who want them.
+
+The banner reuses the proven `Overall Service Status` query — gateway success rate bucketed
+to 0/1/2/3/4 — and differs only in its value mappings. Do not fork the query; if the
+thresholds change, change them once and keep both tiles consistent.
+
+### Guidance panels
+
+The bottom row carries usage guidance, a cost table and troubleshooting. Rates there are
+**real, from billing** (see §5.7) — if you edit them, re-derive rather than estimate. The
+cost advice follows from the rates: output is ~5x input, cached input ~10% of input, tier
+choice is a ~5x lever, long context ~2x.
+
+### Still open for this page
+
+- Historical uptime (30/90-day), which is what tells a wider audience whether to *build* on
+  the platform, as distinct from whether it is up now
+- A provider/model template variable, so a user of two models does not scroll past 68 tiles
+- An onboarding pointer — new users land here first and there is nothing telling them how
+  to get access
