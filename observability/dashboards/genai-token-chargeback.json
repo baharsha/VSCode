@@ -1,0 +1,2044 @@
+{
+  "uid": "genai-token-chargeback",
+  "title": "GenAI Hub - Token Economics and Chargeback",
+  "description": "Live token consumption and chargeback across every model family, built on the product / consumer / model / region dimensions carried in AppMetrics. Denominated in tokens: an editable rate card in the Rate Card section turns on cost without guessing prices.",
+  "tags": [
+    "genai-hub",
+    "production",
+    "cost",
+    "chargeback",
+    "finops"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "30m",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "6h",
+      "12h"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "product",
+        "label": "Product",
+        "description": "Filter the dashboard to one or more APIM products.",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-azure-monitor-datasource",
+          "uid": "azure-monitor-oob"
+        },
+        "query": {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| distinct Product\n| where isnotempty(Product)\n| order by Product asc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79"
+        },
+        "definition": "Product",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": "'*'",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "sort": 1,
+        "hide": 0
+      },
+      {
+        "name": "model",
+        "label": "Model",
+        "description": "Filter the dashboard to one or more model deployments.",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-azure-monitor-datasource",
+          "uid": "azure-monitor-oob"
+        },
+        "query": {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| distinct Model\n| order by Model asc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79"
+        },
+        "definition": "Model",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": "'*'",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "sort": 1,
+        "hide": 0
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "GenAI Hub dashboards",
+      "type": "dashboards",
+      "tags": [
+        "genai-hub"
+      ],
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "tooltip": "",
+      "url": ""
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Consumption at a Glance",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Total Tokens",
+      "description": "All prompt and completion tokens through the model gateway in the selected window, across every model family.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Tokens=sum(Sum) by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "time_series",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": null,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Prompt Tokens",
+      "description": "Input tokens. Usually the cheaper half of the bill, but the larger volume.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| where Name == 'Prompt Tokens'\n| summarize Tokens=sum(Sum) by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "time_series",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": null,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Completion Tokens",
+      "description": "Generated tokens. Typically priced several times higher than input, so this drives cost far more than its volume suggests.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| where Name == 'Completion Tokens'\n| summarize Tokens=sum(Sum) by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "time_series",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": null,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Output Share",
+      "description": "Completion tokens as a percentage of total. The single best cost predictor available without prices: a rising share means spend grows faster than volume.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens') by bin(TimeGenerated, 1h)\n| project TimeGenerated, OutputShare = 100.0 * Completion / iff(Prompt+Completion == 0, 1.0, Prompt+Completion)\n| order by TimeGenerated asc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "time_series",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "orange",
+                "value": 15
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Active Products",
+      "description": "Distinct APIM products consuming models in the window. This is the chargeback population.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Products=dcount(Product)",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "time_series",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": null,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Active Models",
+      "description": "Distinct model deployments receiving traffic. Compare with the total deployed estate to spot models nobody uses.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Models=dcount(Model)",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "time_series",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": null,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Chargeback by Product",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "barchart",
+      "title": "Token Share by Product",
+      "description": "Total tokens per APIM product. This is the allocation basis for chargeback.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 0,
+        "y": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Tokens=sum(Sum) by Product\n| top 15 by Tokens desc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 85,
+            "gradientMode": "hue",
+            "axisPlacement": "auto",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100,
+        "showValue": "auto",
+        "stacking": "none",
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Product Consumption Trend",
+      "description": "Token consumption over time per product, stacked. Use it to spot a product whose usage is climbing before it shows up on an invoice.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 14,
+        "x": 10,
+        "y": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Tokens=sum(Sum) by bin(TimeGenerated, 1h), Product\n| order by TimeGenerated asc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "time_series",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "axisSoftMin": 0,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Product Chargeback Detail",
+      "description": "Per-product allocation basis. APM ID is parsed from the product name where present. Output share flags products whose usage skews to expensive generated tokens.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens'),\n            Models=dcount(Model), Consumers=dcount(Consumer) by Product\n| extend Total = Prompt + Completion\n| extend ['Output %'] = round(100.0 * Completion / iff(Total==0, 1.0, Total), 2)\n| extend ['APM ID'] = extract(@'([0-9]{5,6})', 1, Product)\n| extend ['Share %'] = round(100.0 * Total / toscalar(\n      AppMetrics | where Name in ('Prompt Tokens','Completion Tokens') | summarize sum(Sum)), 2)\n| project Product, ['APM ID'], Total, Prompt, Completion, ['Output %'], ['Share %'], Models, Consumers\n| order by Total desc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Product"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 420
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Share %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 25
+                    },
+                    {
+                      "color": "red",
+                      "value": 50
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Output %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 5
+                    },
+                    {
+                      "color": "orange",
+                      "value": 15
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "max",
+                "value": 25
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "APM ID"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Total",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "row",
+      "title": "Model Economics",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "barchart",
+      "title": "Tokens by Model",
+      "description": "Total tokens per model deployment. Concentration here tells you which models actually matter commercially.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 0,
+        "y": 29
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Tokens=sum(Sum) by Model\n| top 15 by Tokens desc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 85,
+            "gradientMode": "hue",
+            "axisPlacement": "auto",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100,
+        "showValue": "auto",
+        "stacking": "none",
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Input vs Output Tokens Over Time",
+      "description": "Prompt against completion tokens. Divergence matters: output tokens are priced far higher, so a rising completion line raises cost faster than the volume implies.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 14,
+        "x": 10,
+        "y": 29
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens') by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "time_series",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "axisSoftMin": 0,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Model Consumption Detail",
+      "description": "Per-model token split with the products and regions consuming each. Output share is the cost-weighting signal to watch until rates are entered.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens'),\n            Products=dcount(Product), Regions=dcount(Region) by Model\n| extend Total = Prompt + Completion\n| extend ['Output %'] = round(100.0 * Completion / iff(Total==0, 1.0, Total), 2)\n| project Model, Total, Prompt, Completion, ['Output %'], Products, Regions\n| order by Total desc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Model"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 340
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Output %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 5
+                    },
+                    {
+                      "color": "orange",
+                      "value": 15
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "max",
+                "value": 25
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Total",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "row",
+      "title": "Estimated Cost",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 49
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "text",
+      "title": "Cost coverage - read this first",
+      "gridPos": {
+        "h": 9,
+        "w": 7,
+        "x": 0,
+        "y": 50
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "\n### Rates are real. Coverage is not complete.\n\nRates below are **derived from actual Azure billing** (Cost Management, Jul 2026), in **EUR per 1M tokens**, split input/output.\n\n### What is missing\n\nThese panels are built on `AppMetrics`, which **does not carry any Anthropic/Claude model**. Claude was about **EUR 36k of EUR 66k actual model spend in July** - so cost here covers OpenAI, Kimi and embeddings **only**.\n\nValidated against billing for 1-30 Jul:\n\n| | EUR |\n|---|---|\n| Estimated here | 12,502 |\n| Actual (all models) | 66,022 |\n| Actual (excl. Claude) | ~30,000 |\n\nThe remaining gap after Claude is **long-context and cache-write meters**, which are billed at premium rates this model does not represent.\n\n### Why Claude cannot simply be added\n\n`GatewayLlmLogs` is the only log source with Claude tokens and it is **incomplete**: over 30 days it reports 472M prompt tokens and **zero** completion and **zero** cached tokens, while billing shows billions of cache-hit tokens. It is not reliable for costing.\n\n**Treat these figures as a directional lower bound for OpenAI-family models, not a bill.**\nAzure Cost Management remains the source of truth.\n"
+      }
+    },
+    {
+      "type": "table",
+      "title": "Estimated Cost by Product",
+      "description": "Cost per product using rates derived from actual Azure billing. EXCLUDES all Claude models (AppMetrics carries no Anthropic data) and does not model long-context or cache-write premiums, so totals run well below the real bill. Directional only.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 17,
+        "x": 7,
+        "y": 50
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "// ===================================================================\n// RATE CARD - EUR per 1,000,000 tokens\n// DERIVED FROM ACTUAL AZURE BILLING (Cost Management, Jul 2026).\n// Each rate = billed cost / billed quantity for that model's meters.\n// Meters quoted per 1K tokens were normalised to per 1M.\n// These are effective actual rates, not list prices. Re-derive when\n// your commercial terms change. Models showing 0.0 had no billable\n// meter in the period - their cost will read 0 and 'Rate set' = no.\n// ===================================================================\nlet Currency = 'EUR';\nlet Rates = datatable(Model:string, InPer1M:real, OutPer1M:real)[\n    \"gpt-5.4_gb_2026-03-05\", 1.5577, 9.3462,\n    \"text-embedding-3-large_rg-swc_3\", 0.1, 0.0,\n    \"gpt-5.4-mini_gb_2026-03-17\", 0.4673, 2.8039,\n    \"gpt-5.4-nano_gb_2026-03-17\", 0.1246, 0.7789,\n    \"gpt-41_dz-eu_2025-04-14\", 1.4, 5.5,\n    \"gpt-5.2_gb_2025-12-11\", 1.0904, 8.7231,\n    \"gpt-41_gb_2025-04-14\", 1.2, 5.0,\n    \"gpt-4o-mini_dz-eu_2024-07-08\", 0.1, 0.4,\n    \"gpt-5_dz-swc_2025-08-07\", 0.8567, 6.8539,\n    \"gpt-5.1_dz-eu_2025-11-13\", 0.8567, 6.8539,\n    \"text-embedding-ada-002_rg-euw_002\", 0.1, 0.0,\n    \"gpt-41-mini_gb_2025-04-14\", 0.2, 1.0,\n    \"gpt-5-nano_gb_2025-08-07\", 0.0312, 0.2492,\n    \"Kimi-K2.6_gb_2026-04-20\", 0.6, 2.5,\n    \"gpt-4o_dz-eu_2024-08-06\", 1.7, 6.9,\n    \"gpt-5-mini_dz-swc_2025-08-07\", 0.1713, 1.3708,\n    \"gpt-5.2-chat_gb_2025-12-11\", 1.0904, 8.7231,\n    \"gpt-41-nano_dz-eu_2025-04-14\", 0.1, 0.3,\n    \"model-router_gb_2025-11-18\", 1.5577, 9.3462,\n    \"text-embedding-3-small_dz-eu_1\", 0.1, 0.0,\n    \"gpt-5-nano_dz-swc_2025-08-07\", 0.0343, 0.2742,\n    \"o1_dz-eu_2024-12-17\", 10.3, 41.1,\n    \"text-embedding-ada-002_rg-swc_002\", 0.1, 0.0,\n    \"o3-mini_dz-eu_2025-01-31\", 0.8, 3.0,\n    \"gpt-5-mini_gb_2025-08-07\", 0.1558, 1.2462,\n    \"gpt-5.6-terra_gb_2026-07-09\", 1.5577, 9.3462,\n    \"gpt-5-chat_gb_2025-08-07\", 1.0904, 8.7231,\n    \"gpt-5.6-luna_gb_2026-07-09\", 0.6231, 3.7385,\n    \"gpt-5.6-sol_gb_2026-07-09\", 3.1154, 18.6924,\n    \"model-router_dz-eu_2025-08-07\", 1.5577, 9.3462,\n    \"gpt-41-nano_gb_2025-04-14\", 1.2, 5.0,\n    \"qwen3-coder-next\", 0.0, 0.0,\n    \"o4-mini_dz-eu_2025-04-16\", 0.0, 0.0,\n    \"o4-mini_gb_2025-04-16\", 0.0, 0.0,\n    \"gpt-5-codex_gb_2025-09-15\", 0.0, 0.0,\n    \"mistral-small-rg-swc-2503\", 0.0, 0.0,\n    \"granite-4.0-h-small\", 0.0, 0.0\n];\nAppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens') by Product, Model\n| join kind=leftouter Rates on Model\n| extend InPer1M = todouble(coalesce(InPer1M, 0.0)), OutPer1M = todouble(coalesce(OutPer1M, 0.0))\n| extend ['Input cost'] = Prompt / 1000000.0 * InPer1M,\n         ['Output cost'] = Completion / 1000000.0 * OutPer1M\n| summarize ['Input cost']=round(sum(['Input cost']), 2), ['Output cost']=round(sum(['Output cost']), 2),\n            Tokens=sum(Prompt+Completion) by Product\n| extend ['Total cost'] = round(['Input cost'] + ['Output cost'], 2)\n| project Product, ['Total cost'], ['Input cost'], ['Output cost'], Tokens\n| order by ['Total cost'] desc, Tokens desc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Product"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 400
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total cost"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyEUR"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Tokens"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Total cost",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "title": "Estimated Cost by Model",
+      "description": "Cost per model using rates derived from actual Azure billing (EUR per 1M tokens). Claude models are absent entirely - AppMetrics does not emit them. Rate set = no means no billable meter was found for that deployment.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 59
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "// ===================================================================\n// RATE CARD - EUR per 1,000,000 tokens\n// DERIVED FROM ACTUAL AZURE BILLING (Cost Management, Jul 2026).\n// Each rate = billed cost / billed quantity for that model's meters.\n// Meters quoted per 1K tokens were normalised to per 1M.\n// These are effective actual rates, not list prices. Re-derive when\n// your commercial terms change. Models showing 0.0 had no billable\n// meter in the period - their cost will read 0 and 'Rate set' = no.\n// ===================================================================\nlet Currency = 'EUR';\nlet Rates = datatable(Model:string, InPer1M:real, OutPer1M:real)[\n    \"gpt-5.4_gb_2026-03-05\", 1.5577, 9.3462,\n    \"text-embedding-3-large_rg-swc_3\", 0.1, 0.0,\n    \"gpt-5.4-mini_gb_2026-03-17\", 0.4673, 2.8039,\n    \"gpt-5.4-nano_gb_2026-03-17\", 0.1246, 0.7789,\n    \"gpt-41_dz-eu_2025-04-14\", 1.4, 5.5,\n    \"gpt-5.2_gb_2025-12-11\", 1.0904, 8.7231,\n    \"gpt-41_gb_2025-04-14\", 1.2, 5.0,\n    \"gpt-4o-mini_dz-eu_2024-07-08\", 0.1, 0.4,\n    \"gpt-5_dz-swc_2025-08-07\", 0.8567, 6.8539,\n    \"gpt-5.1_dz-eu_2025-11-13\", 0.8567, 6.8539,\n    \"text-embedding-ada-002_rg-euw_002\", 0.1, 0.0,\n    \"gpt-41-mini_gb_2025-04-14\", 0.2, 1.0,\n    \"gpt-5-nano_gb_2025-08-07\", 0.0312, 0.2492,\n    \"Kimi-K2.6_gb_2026-04-20\", 0.6, 2.5,\n    \"gpt-4o_dz-eu_2024-08-06\", 1.7, 6.9,\n    \"gpt-5-mini_dz-swc_2025-08-07\", 0.1713, 1.3708,\n    \"gpt-5.2-chat_gb_2025-12-11\", 1.0904, 8.7231,\n    \"gpt-41-nano_dz-eu_2025-04-14\", 0.1, 0.3,\n    \"model-router_gb_2025-11-18\", 1.5577, 9.3462,\n    \"text-embedding-3-small_dz-eu_1\", 0.1, 0.0,\n    \"gpt-5-nano_dz-swc_2025-08-07\", 0.0343, 0.2742,\n    \"o1_dz-eu_2024-12-17\", 10.3, 41.1,\n    \"text-embedding-ada-002_rg-swc_002\", 0.1, 0.0,\n    \"o3-mini_dz-eu_2025-01-31\", 0.8, 3.0,\n    \"gpt-5-mini_gb_2025-08-07\", 0.1558, 1.2462,\n    \"gpt-5.6-terra_gb_2026-07-09\", 1.5577, 9.3462,\n    \"gpt-5-chat_gb_2025-08-07\", 1.0904, 8.7231,\n    \"gpt-5.6-luna_gb_2026-07-09\", 0.6231, 3.7385,\n    \"gpt-5.6-sol_gb_2026-07-09\", 3.1154, 18.6924,\n    \"model-router_dz-eu_2025-08-07\", 1.5577, 9.3462,\n    \"gpt-41-nano_gb_2025-04-14\", 1.2, 5.0,\n    \"qwen3-coder-next\", 0.0, 0.0,\n    \"o4-mini_dz-eu_2025-04-16\", 0.0, 0.0,\n    \"o4-mini_gb_2025-04-16\", 0.0, 0.0,\n    \"gpt-5-codex_gb_2025-09-15\", 0.0, 0.0,\n    \"mistral-small-rg-swc-2503\", 0.0, 0.0,\n    \"granite-4.0-h-small\", 0.0, 0.0\n];\nAppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens') by Model\n| join kind=leftouter Rates on Model\n| extend InPer1M = todouble(coalesce(InPer1M, 0.0)), OutPer1M = todouble(coalesce(OutPer1M, 0.0))\n| extend ['Input cost'] = round(Prompt / 1000000.0 * InPer1M, 2),\n         ['Output cost'] = round(Completion / 1000000.0 * OutPer1M, 2)\n| extend Tokens = Prompt + Completion\n| extend ['Total cost'] = round(['Input cost'] + ['Output cost'], 2)\n| extend ['Cost per 1M'] = round(['Total cost'] / iff(Tokens==0, 1.0, Tokens / 1000000.0), 2)\n| extend ['Rate set'] = iff(InPer1M == 0.0 and OutPer1M == 0.0, 'no', 'yes')\n| project Model, ['Total cost'], ['Input cost'], ['Output cost'], ['Cost per 1M'], Tokens, ['Rate set']\n| order by Tokens desc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": true,
+            "timeColumn": "TimeGenerated"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Model"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 340
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total cost"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyEUR"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Tokens"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rate set"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "no": {
+                        "color": "orange",
+                        "index": 0
+                      },
+                      "yes": {
+                        "color": "green",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Tokens",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "row",
+      "title": "Region, API and Consumer Detail",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 50
+      },
+      "collapsed": true,
+      "panels": [
+        {
+          "type": "barchart",
+          "title": "Tokens by Region",
+          "description": "Where model traffic is actually served. Useful for data-residency review and for spotting cross-region routing.",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 8,
+            "x": 0,
+            "y": 51
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "Azure Log Analytics",
+              "datasource": {
+                "type": "grafana-azure-monitor-datasource",
+                "uid": "azure-monitor-oob"
+              },
+              "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+              "subscriptions": [],
+              "azureLogAnalytics": {
+                "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Tokens=sum(Sum) by Region\n| order by Tokens desc",
+                "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+                "resultFormat": "table",
+                "dashboardTime": true,
+                "timeColumn": "TimeGenerated"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 85,
+                "gradientMode": "hue",
+                "axisPlacement": "auto",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "xTickLabelRotation": 0,
+            "xTickLabelSpacing": 100,
+            "showValue": "auto",
+            "stacking": "none",
+            "legend": {
+              "displayMode": "hidden",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          }
+        },
+        {
+          "type": "barchart",
+          "title": "Tokens by API",
+          "description": "Which gateway API surface the consumption arrives through.",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 8,
+            "x": 8,
+            "y": 51
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "Azure Log Analytics",
+              "datasource": {
+                "type": "grafana-azure-monitor-datasource",
+                "uid": "azure-monitor-oob"
+              },
+              "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+              "subscriptions": [],
+              "azureLogAnalytics": {
+                "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Tokens=sum(Sum) by Api\n| top 12 by Tokens desc",
+                "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+                "resultFormat": "table",
+                "dashboardTime": true,
+                "timeColumn": "TimeGenerated"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 85,
+                "gradientMode": "hue",
+                "axisPlacement": "auto",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "xTickLabelRotation": 0,
+            "xTickLabelSpacing": 100,
+            "showValue": "auto",
+            "stacking": "none",
+            "legend": {
+              "displayMode": "hidden",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          }
+        },
+        {
+          "type": "table",
+          "title": "Consumer Detail",
+          "description": "Token consumption per APIM subscription, one level below product. Use it to find the specific application inside a product that drives the bill.",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 8,
+            "x": 16,
+            "y": 51
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "Azure Log Analytics",
+              "datasource": {
+                "type": "grafana-azure-monitor-datasource",
+                "uid": "azure-monitor-oob"
+              },
+              "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+              "subscriptions": [],
+              "azureLogAnalytics": {
+                "query": "AppMetrics\n| where Name in ('Prompt Tokens', 'Completion Tokens')\n| extend P = todynamic(Properties)\n| extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID']),\n         Model = tostring(P['Model']), Region = tostring(P['Region']), Api = tostring(P['API ID'])\n| where isnotempty(Model)\n| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens'),\n            Models=dcount(Model) by Consumer, Product\n| extend Total = Prompt + Completion\n| project Consumer, Product, Total, Prompt, Completion, Models\n| order by Total desc",
+                "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+                "resultFormat": "table",
+                "dashboardTime": true,
+                "timeColumn": "TimeGenerated"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Consumer"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 260
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Total"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "short"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "gradient"
+                    }
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "blue",
+                          "value": null
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": true,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false,
+              "fields": ""
+            },
+            "sortBy": [
+              {
+                "displayName": "Total",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

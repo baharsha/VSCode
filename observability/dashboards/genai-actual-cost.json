@@ -1,0 +1,878 @@
+{
+  "uid": "genai-actual-cost",
+  "title": "GenAI Hub - Actual Cost (Live from Azure Billing)",
+  "description": "Real billed Azure spend, refreshed daily by the gaih-prd01-model-cost-scan Logic App into GenAIModelCost_CL. Covers every model family including Anthropic, plus platform and infrastructure. Panels filter on the real usage date, so the time picker works. Source of truth for cost - token-derived estimates elsewhere are directional only.",
+  "tags": [
+    "genai-hub",
+    "production",
+    "cost",
+    "finops",
+    "billing"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "1h",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-60d",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "GenAI Hub dashboards",
+      "type": "dashboards",
+      "tags": [
+        "genai-hub"
+      ],
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "tooltip": "",
+      "url": ""
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Actual Spend from Azure Billing",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Total Azure Spend",
+      "description": "All Azure spend in the selected window, from Cost Management. Follows the time picker via the real usage date.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Daily'\n| where UsageDate >= $__timeFrom and UsageDate < $__timeTo\n| summarize Cost = round(sum(Cost), 2)",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Model Spend",
+      "description": "Spend on model inference only (Foundry Models, SaaS model plans, Cognitive Services). Includes Anthropic, which token-based estimates cannot see.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Daily'\n| where UsageDate >= $__timeFrom and UsageDate < $__timeTo\n| where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')\n| summarize Cost = round(sum(Cost), 2)",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Platform and Infrastructure",
+      "description": "Everything that is not model inference - APIM, Container Apps, storage, networking, databases.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 10,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Daily'\n| where UsageDate >= $__timeFrom and UsageDate < $__timeTo\n| where MeterCategory !in ('Foundry Models', 'SaaS', 'Cognitive Services')\n| summarize Cost = round(sum(Cost), 2)",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Model Share of Spend",
+      "description": "Model inference as a percentage of total Azure spend.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 15,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Daily'\n| where UsageDate >= $__timeFrom and UsageDate < $__timeTo\n| summarize Total = sum(Cost), Model = sumif(Cost, MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services'))\n| project Share = round(100.0 * Model / iff(Total == 0, 1.0, Total), 1)",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Data Age",
+      "description": "Hours since the cost pipeline last refreshed. The scan runs daily; anything above 48h means gaih-prd01-model-cost-scan has stopped.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 19,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "GenAIModelCost_CL | summarize Age = round(datetime_diff('minute', now(), max(TimeGenerated)) / 60.0, 1)",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 48
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Daily Model Spend by Family",
+      "description": "Actual daily model cost per model family, stacked. This is billed spend, not a token estimate, so Anthropic and long-context/cache premiums are all included.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 14,
+        "x": 0,
+        "y": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Daily'\n| where UsageDate >= $__timeFrom and UsageDate < $__timeTo\n| where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')\n| extend Family = iff(isempty(MeterSubCategory), MeterCategory, MeterSubCategory)\n| summarize Cost = sum(Cost) by TimeGenerated = UsageDate, Family\n| order by TimeGenerated asc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "time_series",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "fillOpacity": 75,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "axisSoftMin": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Model Spend by Family",
+      "description": "Total actual spend per model family in the selected window.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 14,
+        "y": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Daily'\n| where UsageDate >= $__timeFrom and UsageDate < $__timeTo\n| where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')\n| extend Family = iff(isempty(MeterSubCategory), MeterCategory, MeterSubCategory)\n| summarize Cost = round(sum(Cost), 2) by Family\n| top 14 by Cost desc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 85,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100,
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Spend by Token Type",
+      "description": "Where model money actually goes, split into input, output, cache read and cache write. Sourced from meter-level detail. Cache read being large is evidence prompt caching is working, not idle.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Monthly'\n| where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')\n| extend TokenType = case(\n    Meter has 'cache-hit' or Meter has 'cchd' or Meter has ' cd ' or Meter has 'Cd Inp' or Meter has 'cached', 'Cache read',\n    Meter has 'cache-write' or Meter has 'Cd Wr', 'Cache write',\n    Meter has 'output' or Meter has ' opt ' or Meter has 'Outp' or Meter has 'outpt', 'Output',\n    Meter has 'input' or Meter has ' inp ' or Meter has 'Inp', 'Input', 'Other')\n| extend Family = iff(isempty(MeterSubCategory), MeterCategory, MeterSubCategory)\n| summarize Cost = round(sum(Cost), 2), Units = round(sum(UsageQuantity), 1) by Family, TokenType\n| order by Cost desc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Family"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 220
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cost"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyEUR"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Units"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 120
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Cost",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "title": "Spend by Azure Service",
+      "description": "Full actual spend by Azure meter category in the selected window - the complete bill, not just models.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "subscriptions": [],
+          "azureLogAnalytics": {
+            "query": "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\nGenAIModelCost_CL\n| where ScanId == Latest and Grain == 'Daily'\n| where UsageDate >= $__timeFrom and UsageDate < $__timeTo\n| summarize Cost = round(sum(Cost), 2) by ['Azure service'] = MeterCategory, ['Sub category'] = MeterSubCategory\n| order by Cost desc | take 40",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Azure service"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 210
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sub category"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 230
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cost"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyEUR"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": [
+          {
+            "displayName": "Cost",
+            "desc": true
+          }
+        ]
+      }
+    }
+  ]
+}

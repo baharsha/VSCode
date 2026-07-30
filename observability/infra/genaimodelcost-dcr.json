@@ -1,0 +1,90 @@
+{
+ "location": "swedencentral",
+ "properties": {
+  "streamDeclarations": {
+   "Custom-GenAIModelCost": {
+    "columns": [
+     {
+      "name": "TimeGenerated",
+      "type": "datetime"
+     },
+     {
+      "name": "PeriodStart",
+      "type": "datetime"
+     },
+     {
+      "name": "PeriodEnd",
+      "type": "datetime"
+     },
+     {
+      "name": "UsageDate",
+      "type": "datetime"
+     },
+     {
+      "name": "MeterCategory",
+      "type": "string"
+     },
+     {
+      "name": "MeterSubCategory",
+      "type": "string"
+     },
+     {
+      "name": "Meter",
+      "type": "string"
+     },
+     {
+      "name": "Cost",
+      "type": "real"
+     },
+     {
+      "name": "UsageQuantity",
+      "type": "real"
+     },
+     {
+      "name": "Currency",
+      "type": "string"
+     },
+     {
+      "name": "ScanId",
+      "type": "string"
+     },
+     {
+      "name": "Grain",
+      "type": "string"
+     },
+     {
+      "name": "ResourceId",
+      "type": "string"
+     }
+    ]
+   }
+  },
+  "destinations": {
+   "logAnalytics": [
+    {
+     "name": "modelCostWorkspace",
+     "workspaceResourceId": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0"
+    }
+   ]
+  },
+  "dataFlows": [
+   {
+    "streams": [
+     "Custom-GenAIModelCost"
+    ],
+    "destinations": [
+     "modelCostWorkspace"
+    ],
+    "outputStream": "Custom-GenAIModelCost_CL",
+    "transformKql": "source"
+   }
+  ]
+ },
+ "tags": {
+  "environment": "prod",
+  "platform": "genai-hub",
+  "ID": "161348",
+  "Environment_Type": "Prod"
+ },
+ "kind": "Direct"
+}

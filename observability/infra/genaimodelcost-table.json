@@ -1,0 +1,63 @@
+{
+ "properties": {
+  "schema": {
+   "name": "GenAIModelCost_CL",
+   "columns": [
+    {
+     "name": "TimeGenerated",
+     "type": "datetime"
+    },
+    {
+     "name": "PeriodStart",
+     "type": "datetime"
+    },
+    {
+     "name": "PeriodEnd",
+     "type": "datetime"
+    },
+    {
+     "name": "UsageDate",
+     "type": "datetime"
+    },
+    {
+     "name": "MeterCategory",
+     "type": "string"
+    },
+    {
+     "name": "MeterSubCategory",
+     "type": "string"
+    },
+    {
+     "name": "Meter",
+     "type": "string"
+    },
+    {
+     "name": "Cost",
+     "type": "real"
+    },
+    {
+     "name": "UsageQuantity",
+     "type": "real"
+    },
+    {
+     "name": "Currency",
+     "type": "string"
+    },
+    {
+     "name": "ScanId",
+     "type": "string"
+    },
+    {
+     "name": "Grain",
+     "type": "string"
+    },
+    {
+     "name": "ResourceId",
+     "type": "string"
+    }
+   ]
+  },
+  "retentionInDays": 365,
+  "totalRetentionInDays": 365
+ }
+}

@@ -1,0 +1,1752 @@
+{
+  "uid": "genai-security-posture",
+  "title": "GenAI Hub - Security Posture",
+  "description": "Subscription-wide security posture for the GenAI Hub production estate. API-key access to model endpoints is an accepted platform decision and is excluded from findings. Defender for Cloud findings separated into actionable configuration work and container image CVEs, plus live network-exposure and authentication posture from Azure Resource Graph.",
+  "tags": [
+    "genai-hub",
+    "production",
+    "security",
+    "posture"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 0,
+  "refresh": "30m",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "GenAI Hub dashboards",
+      "type": "dashboards",
+      "tags": [
+        "genai-hub"
+      ],
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": false,
+      "targetBlank": false,
+      "tooltip": "",
+      "url": ""
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Posture at a Glance",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "gauge",
+      "title": "Defender Secure Score",
+      "description": "Microsoft Defender for Cloud secure score for this subscription, as a percentage of achievable points.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 5,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "securityresources\n| where type == 'microsoft.security/securescores'\n| project Score = round(todouble(properties.score.percentage) * 100, 2)"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "yellow",
+                "value": 75
+              },
+              {
+                "color": "green",
+                "value": 90
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto",
+        "minVizWidth": 75,
+        "minVizHeight": 75,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "High Severity",
+      "description": "Unhealthy Defender assessments rated High. Includes both configuration issues and container CVEs.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 5,
+        "x": 5,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend Status = tostring(properties.status.code), Sev = tostring(properties.metadata.severity), Rec = tostring(properties.displayName), Res = tostring(properties.resourceDetails.Id)\n| extend IsCve = Rec startswith 'Update '\n| where Status == 'Unhealthy' and Sev == 'High'\n| summarize Findings = count()"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Medium Severity",
+      "description": "Unhealthy Defender assessments rated Medium.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 5,
+        "x": 10,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend Status = tostring(properties.status.code), Sev = tostring(properties.metadata.severity), Rec = tostring(properties.displayName), Res = tostring(properties.resourceDetails.Id)\n| extend IsCve = Rec startswith 'Update '\n| where Status == 'Unhealthy' and Sev == 'Medium'\n| summarize Findings = count()"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Config Findings",
+      "description": "Unhealthy findings excluding container/OS package CVEs. These are the ones fixed by changing Azure configuration rather than rebuilding images.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 5,
+        "x": 5,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend Status = tostring(properties.status.code), Sev = tostring(properties.metadata.severity), Rec = tostring(properties.displayName), Res = tostring(properties.resourceDetails.Id)\n| extend IsCve = Rec startswith 'Update '\n| where Status == 'Unhealthy' and not(IsCve)\n| where not(Rec has 'key access disabled') and not(Rec has 'local authentication') and not(Rec has 'Key access should be disabled')\n| summarize Findings = count()"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Image CVEs",
+      "description": "Unhealthy findings that are container or OS package updates. Fixed by rebuilding and repushing images, not by Azure config.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 5,
+        "x": 10,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend Status = tostring(properties.status.code), Sev = tostring(properties.metadata.severity), Rec = tostring(properties.displayName), Res = tostring(properties.resourceDetails.Id)\n| extend IsCve = Rec startswith 'Update '\n| where Status == 'Unhealthy' and IsCve\n| summarize Findings = count()"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "yellow",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 25
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Internet-Exposed Services",
+      "description": "Data-plane services where publicNetworkAccess is Enabled (or network default action is Allow). Each is reachable from the public internet, subject to its own auth.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 15,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "resources\n| where type in~ ('microsoft.cognitiveservices/accounts','microsoft.storage/storageaccounts','microsoft.keyvault/vaults','microsoft.documentdb/databaseaccounts','microsoft.search/searchservices','microsoft.containerregistry/registries','microsoft.appconfiguration/configurationstores','microsoft.cache/redis','microsoft.servicebus/namespaces','microsoft.eventhub/namespaces','microsoft.dbforpostgresql/flexibleservers','microsoft.sql/servers')\n| extend PNA = tostring(coalesce(properties.publicNetworkAccess, properties.networkAcls.defaultAction))\n| where PNA in ('Enabled','Allow')\n| summarize Exposed = count()"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Private Endpoints",
+      "description": "Private endpoints across the subscription. The platform reaches its data services over the VNet rather than the public internet.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 5,
+        "x": 19,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "resources\n| where type =~ 'microsoft.network/privateendpoints'\n| summarize Endpoints = count()"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Configuration and Identity Findings",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Actionable Recommendations",
+      "description": "Unhealthy Defender recommendations excluding image CVEs, ranked by number of affected resources. This is the configuration backlog.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 16,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend Status = tostring(properties.status.code), Sev = tostring(properties.metadata.severity), Rec = tostring(properties.displayName), Res = tostring(properties.resourceDetails.Id)\n| extend IsCve = Rec startswith 'Update '\n| where Status == 'Unhealthy' and not(IsCve)\n| where not(Rec has 'key access disabled') and not(Rec has 'local authentication') and not(Rec has 'Key access should be disabled')\n| summarize Affected = count() by Recommendation = Rec, Severity = Sev\n| order by Affected desc"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Severity"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "High": {
+                        "color": "red",
+                        "index": 0
+                      },
+                      "Medium": {
+                        "color": "orange",
+                        "index": 1
+                      },
+                      "Low": {
+                        "color": "yellow",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Affected"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Recommendation"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 620
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Affected",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "piechart",
+      "title": "Config Findings by Severity",
+      "description": "Severity split of configuration and identity findings, excluding container CVEs.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend Status = tostring(properties.status.code), Sev = tostring(properties.metadata.severity), Rec = tostring(properties.displayName), Res = tostring(properties.resourceDetails.Id)\n| extend IsCve = Rec startswith 'Update '\n| where Status == 'Unhealthy' and not(IsCve)\n| where not(Rec has 'key access disabled') and not(Rec has 'local authentication') and not(Rec has 'Key access should be disabled')\n| summarize Findings = count() by Severity = Sev"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "High"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Medium"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Low"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "pieType": "donut",
+        "displayLabels": [
+          "value"
+        ],
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value"
+          ]
+        },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Network Exposure",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Internet-Reachable Data Services",
+      "description": "Services accepting traffic from the public internet. Compare against the private-endpoint estate: most of this platform is already private, so these are the exceptions worth justifying.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 14,
+        "x": 0,
+        "y": 20
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "resources\n| where type in~ ('microsoft.cognitiveservices/accounts','microsoft.storage/storageaccounts','microsoft.keyvault/vaults','microsoft.documentdb/databaseaccounts','microsoft.search/searchservices','microsoft.containerregistry/registries','microsoft.appconfiguration/configurationstores','microsoft.cache/redis','microsoft.servicebus/namespaces','microsoft.eventhub/namespaces','microsoft.dbforpostgresql/flexibleservers','microsoft.sql/servers')\n| extend PNA = tostring(coalesce(properties.publicNetworkAccess, properties.networkAcls.defaultAction))\n| where PNA in ('Enabled','Allow')\n| project Resource = name, Service = tostring(split(type,'/')[-1]), ['Resource group'] = resourceGroup, Location = location, Access = PNA\n| order by Service asc, Resource asc"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Resource"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 300
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Access"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "Enabled": {
+                        "color": "orange",
+                        "index": 0
+                      },
+                      "Allow": {
+                        "color": "orange",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Private Endpoint Coverage",
+      "description": "Private endpoints per resource group. High counts indicate the service estate is reached over the VNet rather than the internet.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 14,
+        "y": 20
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Resource Graph",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscriptions": [
+            "e4e9074e-0238-41e6-929e-edda76b67e79"
+          ],
+          "azureResourceGraph": {
+            "query": "resources\n| where type =~ 'microsoft.network/privateendpoints'\n| summarize ['Private endpoints'] = count() by ['Resource group'] = resourceGroup\n| order by ['Private endpoints'] desc"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Private endpoints"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Private endpoints",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "row",
+      "title": "Identity and Secrets",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "collapsed": true,
+      "panels": [
+        {
+          "type": "table",
+          "title": "Model Endpoint Authentication (reference)",
+          "description": "Reference only, not a finding. API-key access to model endpoints is an accepted platform decision. This table records which authentication modes are in use so the choice stays visible and intentional.",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "gridPos": {
+            "h": 11,
+            "w": 14,
+            "x": 0,
+            "y": 31
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "Azure Resource Graph",
+              "datasource": {
+                "type": "grafana-azure-monitor-datasource",
+                "uid": "azure-monitor-oob"
+              },
+              "subscriptions": [
+                "e4e9074e-0238-41e6-929e-edda76b67e79"
+              ],
+              "azureResourceGraph": {
+                "query": "resources\n| where type =~ 'microsoft.cognitiveservices/accounts'\n| extend KeyAuth = iff(tostring(properties.disableLocalAuth) == 'true', 'Entra ID only', 'API key allowed')\n| project Account = name, ['Resource group'] = resourceGroup, Location = location, Authentication = KeyAuth, ['Public access'] = tostring(properties.publicNetworkAccess)\n| order by Authentication asc, Account asc"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Account"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 300
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Authentication"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "basic"
+                    }
+                  },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "API key allowed": {
+                            "color": "blue",
+                            "index": 0
+                          },
+                          "Entra ID only": {
+                            "color": "blue",
+                            "index": 1
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 160
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false
+            }
+          }
+        },
+        {
+          "type": "table",
+          "title": "Identity and Access Findings",
+          "description": "Defender findings relating to identity, permissions and privileged access.",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "gridPos": {
+            "h": 11,
+            "w": 10,
+            "x": 14,
+            "y": 31
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "Azure Resource Graph",
+              "datasource": {
+                "type": "grafana-azure-monitor-datasource",
+                "uid": "azure-monitor-oob"
+              },
+              "subscriptions": [
+                "e4e9074e-0238-41e6-929e-edda76b67e79"
+              ],
+              "azureResourceGraph": {
+                "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend Status = tostring(properties.status.code), Sev = tostring(properties.metadata.severity), Rec = tostring(properties.displayName), Res = tostring(properties.resourceDetails.Id)\n| extend IsCve = Rec startswith 'Update '\n| where Status == 'Unhealthy' and not(IsCve)\n| where not(Rec has 'key access disabled') and not(Rec has 'local authentication') and not(Rec has 'Key access should be disabled')\n| where Rec has_any ('identit','permission','privileg','role','authenticat','Key Vault','secret')\n| summarize Affected = count() by Recommendation = Rec, Severity = Sev\n| order by Affected desc"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Severity"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "High": {
+                            "color": "red",
+                            "index": 0
+                          },
+                          "Medium": {
+                            "color": "orange",
+                            "index": 1
+                          },
+                          "Low": {
+                            "color": "yellow",
+                            "index": 2
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 100
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Affected"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "gradient"
+                    }
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "green",
+                          "value": null
+                        },
+                        {
+                          "color": "orange",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 100
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Recommendation"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 420
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false
+            },
+            "sortBy": [
+              {
+                "displayName": "Affected",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Container Image Vulnerabilities",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "collapsed": true,
+      "panels": [
+        {
+          "type": "table",
+          "title": "Most Vulnerable Container Images",
+          "description": "Container images in the registry carrying the most outstanding package updates. Rebuild and repush these to clear the findings.",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "gridPos": {
+            "h": 12,
+            "w": 15,
+            "x": 0,
+            "y": 32
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "Azure Resource Graph",
+              "datasource": {
+                "type": "grafana-azure-monitor-datasource",
+                "uid": "azure-monitor-oob"
+              },
+              "subscriptions": [
+                "e4e9074e-0238-41e6-929e-edda76b67e79"
+              ],
+              "azureResourceGraph": {
+                "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend Status = tostring(properties.status.code), Sev = tostring(properties.metadata.severity), Rec = tostring(properties.displayName), Res = tostring(properties.resourceDetails.Id)\n| extend IsCve = Rec startswith 'Update '\n| where Status == 'Unhealthy' and IsCve\n| extend Img = tostring(split(Res, '/')[-1])\n| summarize ['Outstanding updates'] = count(), High = countif(Sev == 'High'), Medium = countif(Sev == 'Medium') by Image = Img\n| order by ['Outstanding updates'] desc\n| take 25"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Outstanding updates"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "gradient"
+                    }
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "yellow",
+                          "value": null
+                        },
+                        {
+                          "color": "orange",
+                          "value": 10
+                        },
+                        {
+                          "color": "red",
+                          "value": 25
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 170
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "High"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "gradient"
+                    }
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "green",
+                          "value": null
+                        },
+                        {
+                          "color": "red",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 90
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Medium"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "gradient"
+                    }
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "green",
+                          "value": null
+                        },
+                        {
+                          "color": "orange",
+                          "value": 1
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 100
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Image"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 520
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false
+            },
+            "sortBy": [
+              {
+                "displayName": "Outstanding updates",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "type": "table",
+          "title": "Most Common Package Updates",
+          "description": "Packages needing an update across the image estate. Fixing the highest-count packages in shared base images clears many findings at once.",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "gridPos": {
+            "h": 12,
+            "w": 9,
+            "x": 15,
+            "y": 32
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "Azure Resource Graph",
+              "datasource": {
+                "type": "grafana-azure-monitor-datasource",
+                "uid": "azure-monitor-oob"
+              },
+              "subscriptions": [
+                "e4e9074e-0238-41e6-929e-edda76b67e79"
+              ],
+              "azureResourceGraph": {
+                "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend Status = tostring(properties.status.code), Sev = tostring(properties.metadata.severity), Rec = tostring(properties.displayName), Res = tostring(properties.resourceDetails.Id)\n| extend IsCve = Rec startswith 'Update '\n| where Status == 'Unhealthy' and IsCve\n| summarize ['Images affected'] = count() by Package = Rec, Severity = Sev\n| order by ['Images affected'] desc\n| take 25"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false,
+                "filterable": true
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Severity"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "High": {
+                            "color": "red",
+                            "index": 0
+                          },
+                          "Medium": {
+                            "color": "orange",
+                            "index": 1
+                          },
+                          "Low": {
+                            "color": "yellow",
+                            "index": 2
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 100
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Images affected"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "gradient"
+                    }
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "yellow",
+                          "value": null
+                        },
+                        {
+                          "color": "orange",
+                          "value": 10
+                        },
+                        {
+                          "color": "red",
+                          "value": 25
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.width",
+                    "value": 140
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Package"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 300
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false,
+              "reducer": [
+                "sum"
+              ],
+              "countRows": false
+            },
+            "sortBy": [
+              {
+                "displayName": "Images affected",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,351 @@
+{
+ "location": "swedencentral",
+ "identity": {
+  "type": "SystemAssigned"
+ },
+ "tags": {
+  "environment": "prod",
+  "platform": "genai-hub",
+  "ID": "161348",
+  "Environment_Type": "Prod"
+ },
+ "properties": {
+  "state": "Enabled",
+  "definition": {
+   "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+   "contentVersion": "1.0.0.0",
+   "parameters": {},
+   "triggers": {
+    "Daily_Model_Cost_Scan": {
+     "type": "Recurrence",
+     "recurrence": {
+      "frequency": "Day",
+      "interval": 1,
+      "startTime": "2026-08-01T03:00:00Z",
+      "timeZone": "UTC"
+     }
+    }
+   },
+   "actions": {
+    "Query_Daily": {
+     "type": "Http",
+     "runAfter": {},
+     "inputs": {
+      "method": "POST",
+      "uri": "https://management.azure.com/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/providers/Microsoft.CostManagement/query?api-version=2023-03-01",
+      "headers": {
+       "Content-Type": "application/json"
+      },
+      "body": {
+       "type": "ActualCost",
+       "timeframe": "Custom",
+       "timePeriod": {
+        "from": "@{formatDateTime(addToTime(startOfMonth(utcNow()), -1, 'Month'), 'yyyy-MM-ddTHH:mm:ssZ')}",
+        "to": "@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ssZ')}"
+       },
+       "dataset": {
+        "granularity": "Daily",
+        "aggregation": {
+         "totalCost": {
+          "name": "Cost",
+          "function": "Sum"
+         },
+         "qty": {
+          "name": "UsageQuantity",
+          "function": "Sum"
+         }
+        },
+        "grouping": [
+         {
+          "type": "Dimension",
+          "name": "MeterCategory"
+         },
+         {
+          "type": "Dimension",
+          "name": "MeterSubCategory"
+         }
+        ]
+       }
+      },
+      "authentication": {
+       "type": "ManagedServiceIdentity",
+       "audience": "https://management.azure.com/"
+      }
+     }
+    },
+    "Shape_Daily": {
+     "type": "Select",
+     "runAfter": {
+      "Query_Daily": [
+       "Succeeded"
+      ]
+     },
+     "inputs": {
+      "from": "@body('Query_Daily')?['properties']?['rows']",
+      "select": {
+       "TimeGenerated": "@utcNow()",
+       "PeriodStart": "@{formatDateTime(addToTime(startOfMonth(utcNow()), -1, 'Month'), 'yyyy-MM-ddTHH:mm:ssZ')}",
+       "PeriodEnd": "@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ssZ')}",
+       "UsageDate": "@{concat(substring(string(item()[2]),0,4),'-',substring(string(item()[2]),4,2),'-',substring(string(item()[2]),6,2),'T00:00:00Z')}",
+       "Cost": "@float(item()[0])",
+       "UsageQuantity": "@float(item()[1])",
+       "MeterCategory": "@string(item()[3])",
+       "MeterSubCategory": "@string(item()[4])",
+       "Meter": "@''",
+       "Currency": "@string(item()[5])",
+       "Grain": "Daily",
+       "ResourceId": "@''",
+       "ScanId": "@{workflow()['run']['name']}"
+      }
+     }
+    },
+    "Ingest_Daily": {
+     "type": "Foreach",
+     "runAfter": {
+      "Shape_Daily": [
+       "Succeeded"
+      ]
+     },
+     "foreach": "@chunk(body('Shape_Daily'), 500)",
+     "runtimeConfiguration": {
+      "concurrency": {
+       "repetitions": 1
+      }
+     },
+     "actions": {
+      "Post_Daily": {
+       "type": "Http",
+       "runAfter": {},
+       "inputs": {
+        "method": "POST",
+        "uri": "https://gaih-prd01-modelcost-dcr-2wpr-swedencentral.logs.z1.ingest.monitor.azure.com/dataCollectionRules/dcr-23413457d1334e1eb3de7e61532b6c5c/streams/Custom-GenAIModelCost?api-version=2023-01-01",
+        "headers": {
+         "Content-Type": "application/json"
+        },
+        "body": "@item()",
+        "authentication": {
+         "type": "ManagedServiceIdentity",
+         "audience": "https://monitor.azure.com/"
+        }
+       }
+      }
+     }
+    },
+    "Query_Monthly": {
+     "type": "Http",
+     "runAfter": {},
+     "inputs": {
+      "method": "POST",
+      "uri": "https://management.azure.com/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/providers/Microsoft.CostManagement/query?api-version=2023-03-01",
+      "headers": {
+       "Content-Type": "application/json"
+      },
+      "body": {
+       "type": "ActualCost",
+       "timeframe": "Custom",
+       "timePeriod": {
+        "from": "@{formatDateTime(addToTime(startOfMonth(utcNow()), -1, 'Month'), 'yyyy-MM-ddTHH:mm:ssZ')}",
+        "to": "@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ssZ')}"
+       },
+       "dataset": {
+        "granularity": "Monthly",
+        "aggregation": {
+         "totalCost": {
+          "name": "Cost",
+          "function": "Sum"
+         },
+         "qty": {
+          "name": "UsageQuantity",
+          "function": "Sum"
+         }
+        },
+        "grouping": [
+         {
+          "type": "Dimension",
+          "name": "MeterCategory"
+         },
+         {
+          "type": "Dimension",
+          "name": "MeterSubCategory"
+         },
+         {
+          "type": "Dimension",
+          "name": "Meter"
+         }
+        ]
+       }
+      },
+      "authentication": {
+       "type": "ManagedServiceIdentity",
+       "audience": "https://management.azure.com/"
+      }
+     }
+    },
+    "Shape_Monthly": {
+     "type": "Select",
+     "runAfter": {
+      "Query_Monthly": [
+       "Succeeded"
+      ]
+     },
+     "inputs": {
+      "from": "@body('Query_Monthly')?['properties']?['rows']",
+      "select": {
+       "TimeGenerated": "@utcNow()",
+       "PeriodStart": "@{formatDateTime(addToTime(startOfMonth(utcNow()), -1, 'Month'), 'yyyy-MM-ddTHH:mm:ssZ')}",
+       "PeriodEnd": "@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ssZ')}",
+       "UsageDate": "@{concat(substring(string(item()[2]),0,4),'-',substring(string(item()[2]),4,2),'-',substring(string(item()[2]),6,2),'T00:00:00Z')}",
+       "Cost": "@float(item()[0])",
+       "UsageQuantity": "@float(item()[1])",
+       "MeterCategory": "@string(item()[3])",
+       "MeterSubCategory": "@string(item()[4])",
+       "Meter": "@string(item()[5])",
+       "Currency": "@string(item()[6])",
+       "Grain": "Monthly",
+       "ResourceId": "@''",
+       "ScanId": "@{workflow()['run']['name']}"
+      }
+     }
+    },
+    "Ingest_Monthly": {
+     "type": "Foreach",
+     "runAfter": {
+      "Shape_Monthly": [
+       "Succeeded"
+      ]
+     },
+     "foreach": "@chunk(body('Shape_Monthly'), 500)",
+     "runtimeConfiguration": {
+      "concurrency": {
+       "repetitions": 1
+      }
+     },
+     "actions": {
+      "Post_Monthly": {
+       "type": "Http",
+       "runAfter": {},
+       "inputs": {
+        "method": "POST",
+        "uri": "https://gaih-prd01-modelcost-dcr-2wpr-swedencentral.logs.z1.ingest.monitor.azure.com/dataCollectionRules/dcr-23413457d1334e1eb3de7e61532b6c5c/streams/Custom-GenAIModelCost?api-version=2023-01-01",
+        "headers": {
+         "Content-Type": "application/json"
+        },
+        "body": "@item()",
+        "authentication": {
+         "type": "ManagedServiceIdentity",
+         "audience": "https://monitor.azure.com/"
+        }
+       }
+      }
+     }
+    },
+    "Query_Resource": {
+     "type": "Http",
+     "runAfter": {},
+     "inputs": {
+      "method": "POST",
+      "uri": "https://management.azure.com/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/providers/Microsoft.CostManagement/query?api-version=2023-03-01",
+      "headers": {
+       "Content-Type": "application/json"
+      },
+      "body": {
+       "type": "ActualCost",
+       "timeframe": "Custom",
+       "timePeriod": {
+        "from": "@{formatDateTime(addToTime(startOfMonth(utcNow()), -1, 'Month'), 'yyyy-MM-ddTHH:mm:ssZ')}",
+        "to": "@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ssZ')}"
+       },
+       "dataset": {
+        "granularity": "Monthly",
+        "aggregation": {
+         "totalCost": {
+          "name": "Cost",
+          "function": "Sum"
+         },
+         "qty": {
+          "name": "UsageQuantity",
+          "function": "Sum"
+         }
+        },
+        "grouping": [
+         {
+          "type": "Dimension",
+          "name": "ResourceId"
+         },
+         {
+          "type": "Dimension",
+          "name": "MeterSubCategory"
+         }
+        ]
+       }
+      },
+      "authentication": {
+       "type": "ManagedServiceIdentity",
+       "audience": "https://management.azure.com/"
+      }
+     }
+    },
+    "Shape_Resource": {
+     "type": "Select",
+     "runAfter": {
+      "Query_Resource": [
+       "Succeeded"
+      ]
+     },
+     "inputs": {
+      "from": "@body('Query_Resource')?['properties']?['rows']",
+      "select": {
+       "TimeGenerated": "@utcNow()",
+       "PeriodStart": "@{formatDateTime(addToTime(startOfMonth(utcNow()), -1, 'Month'), 'yyyy-MM-ddTHH:mm:ssZ')}",
+       "PeriodEnd": "@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ssZ')}",
+       "UsageDate": "@{concat(substring(string(item()[2]),0,4),'-',substring(string(item()[2]),4,2),'-',substring(string(item()[2]),6,2),'T00:00:00Z')}",
+       "Cost": "@float(item()[0])",
+       "UsageQuantity": "@float(item()[1])",
+       "MeterCategory": "@string(item()[4])",
+       "MeterSubCategory": "@string(item()[4])",
+       "Meter": "@''",
+       "Currency": "@string(item()[5])",
+       "Grain": "Resource",
+       "ResourceId": "@string(item()[3])",
+       "ScanId": "@{workflow()['run']['name']}"
+      }
+     }
+    },
+    "Ingest_Resource": {
+     "type": "Foreach",
+     "runAfter": {
+      "Shape_Resource": [
+       "Succeeded"
+      ]
+     },
+     "foreach": "@chunk(body('Shape_Resource'), 500)",
+     "runtimeConfiguration": {
+      "concurrency": {
+       "repetitions": 1
+      }
+     },
+     "actions": {
+      "Post_Resource": {
+       "type": "Http",
+       "runAfter": {},
+       "inputs": {
+        "method": "POST",
+        "uri": "https://gaih-prd01-modelcost-dcr-2wpr-swedencentral.logs.z1.ingest.monitor.azure.com/dataCollectionRules/dcr-23413457d1334e1eb3de7e61532b6c5c/streams/Custom-GenAIModelCost?api-version=2023-01-01",
+        "headers": {
+         "Content-Type": "application/json"
+        },
+        "body": "@item()",
+        "authentication": {
+         "type": "ManagedServiceIdentity",
+         "audience": "https://monitor.azure.com/"
+        }
+       }
+      }
+     }
+    }
+   },
+   "outputs": {}
+  },
+  "parameters": {}
+ }
+}
