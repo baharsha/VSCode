@@ -660,12 +660,523 @@
       "type": "table"
     },
     {
+      "type": "row",
+      "title": "Service Reliability History",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 26
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Model availability \u2014 last 24h",
+      "description": "Share of model requests not returning a server error, over the last 24 hours. Model gateway only; other platform APIs are excluded so this reflects the service you call.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 27
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "azureLogAnalytics": {
+            "query": "union AzureDiagnostics, workspace(\"aa6cc9fc-f7cd-4720-9403-2ffaca04fd83\").AzureDiagnostics\n| where ResourceProvider == 'MICROSOFT.APIMANAGEMENT' and Category == 'GatewayLogs'\n| where TimeGenerated > ago(24h)\n| extend IsModel = tostring(url_s) has '/deployments/' or tostring(apiId_s) == 'anthropic-api'\n| where IsModel\n| summarize R=count(), F=countif(toint(column_ifexists('responseCode_d',0)) >= 500)\n| project Availability = round(100.0 * todouble(R - F) / todouble(R), 3)",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 3,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 97
+              },
+              {
+                "color": "yellow",
+                "value": 99
+              },
+              {
+                "color": "green",
+                "value": 99.5
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Model availability \u2014 last 7 days",
+      "description": "Rolling 7-day model availability.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 27
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "azureLogAnalytics": {
+            "query": "union AzureDiagnostics, workspace(\"aa6cc9fc-f7cd-4720-9403-2ffaca04fd83\").AzureDiagnostics\n| where ResourceProvider == 'MICROSOFT.APIMANAGEMENT' and Category == 'GatewayLogs'\n| where TimeGenerated > ago(7d)\n| extend IsModel = tostring(url_s) has '/deployments/' or tostring(apiId_s) == 'anthropic-api'\n| where IsModel\n| summarize R=count(), F=countif(toint(column_ifexists('responseCode_d',0)) >= 500)\n| project Availability = round(100.0 * todouble(R - F) / todouble(R), 3)",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 3,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 97
+              },
+              {
+                "color": "yellow",
+                "value": 99
+              },
+              {
+                "color": "green",
+                "value": 99.5
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Model availability \u2014 last 30 days",
+      "description": "Rolling 30-day model availability. This is the figure to use when judging whether to build on the platform.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 10,
+        "y": 27
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "azureLogAnalytics": {
+            "query": "union AzureDiagnostics, workspace(\"aa6cc9fc-f7cd-4720-9403-2ffaca04fd83\").AzureDiagnostics\n| where ResourceProvider == 'MICROSOFT.APIMANAGEMENT' and Category == 'GatewayLogs'\n| where TimeGenerated > ago(30d)\n| extend IsModel = tostring(url_s) has '/deployments/' or tostring(apiId_s) == 'anthropic-api'\n| where IsModel\n| summarize R=count(), F=countif(toint(column_ifexists('responseCode_d',0)) >= 500)\n| project Availability = round(100.0 * todouble(R - F) / todouble(R), 3)",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 3,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 97
+              },
+              {
+                "color": "yellow",
+                "value": 99
+              },
+              {
+                "color": "green",
+                "value": 99.5
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "wideLayout": true,
+        "showPercentChange": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Daily model availability \u2014 last 60 days",
+      "description": "Availability per day for the model gateway. Log retention is 63 days, so this is the full history available - there is deliberately no 90-day figure. The axis floor is soft, so genuinely bad days are shown in full rather than clipped.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "azureLogAnalytics": {
+            "query": "union AzureDiagnostics, workspace(\"aa6cc9fc-f7cd-4720-9403-2ffaca04fd83\").AzureDiagnostics\n| where ResourceProvider == 'MICROSOFT.APIMANAGEMENT' and Category == 'GatewayLogs'\n| where TimeGenerated > ago(60d)\n| extend IsModel = tostring(url_s) has '/deployments/' or tostring(apiId_s) == 'anthropic-api'\n| where IsModel\n| summarize R=count(), F=countif(toint(column_ifexists('responseCode_d',0)) >= 500) by TimeGenerated = startofday(TimeGenerated)\n| project TimeGenerated, ['Availability %'] = round(100.0 * todouble(R - F) / todouble(R), 3)\n| order by TimeGenerated asc",
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "time_series",
+            "dashboardTime": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 3,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 97
+              },
+              {
+                "color": "yellow",
+                "value": 99
+              },
+              {
+                "color": "green",
+                "value": 99.5
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 85,
+            "gradientMode": "scheme",
+            "showPoints": "never",
+            "axisSoftMin": 95,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "All models \u2014 searchable status",
+      "description": "Every model with live status and availability. Use the column filters or sort instead of scrolling the provider sections below. Shares its data with the status tiles, so it costs no additional query.",
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 9000
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Model"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 260
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "AvailabilityPct"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Availability %"
+              },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 97
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 99
+                    },
+                    {
+                      "color": "green",
+                      "value": 99.5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Requests"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Requests",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 53
       },
       "id": 10,
       "panels": [],
@@ -692,7 +1203,7 @@
         "h": 1,
         "w": 1,
         "x": 0,
-        "y": 27
+        "y": 54
       },
       "id": 9010,
       "options": {
@@ -797,7 +1308,7 @@
         "h": 6,
         "w": 4,
         "x": 1,
-        "y": 27
+        "y": 54
       },
       "id": 11,
       "links": [
@@ -944,7 +1455,7 @@
         "h": 6,
         "w": 4,
         "x": 5,
-        "y": 27
+        "y": 54
       },
       "id": 12,
       "links": [
@@ -1091,7 +1602,7 @@
         "h": 6,
         "w": 4,
         "x": 9,
-        "y": 27
+        "y": 54
       },
       "id": 13,
       "links": [
@@ -1238,7 +1749,7 @@
         "h": 6,
         "w": 4,
         "x": 13,
-        "y": 27
+        "y": 54
       },
       "id": 14,
       "links": [
@@ -1385,7 +1896,7 @@
         "h": 6,
         "w": 4,
         "x": 17,
-        "y": 27
+        "y": 54
       },
       "id": 15,
       "links": [
@@ -1532,7 +2043,7 @@
         "h": 6,
         "w": 4,
         "x": 0,
-        "y": 33
+        "y": 60
       },
       "id": 16,
       "links": [
@@ -1719,7 +2230,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 66
       },
       "id": 17,
       "links": [
@@ -1789,7 +2300,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 75
       },
       "id": 7,
       "panels": [],
@@ -1861,7 +2372,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 76
       },
       "id": 8,
       "options": {
@@ -1901,7 +2412,7 @@
         "h": 5,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 88
       },
       "id": 9,
       "options": {
@@ -1917,7 +2428,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 93
       },
       "id": 100,
       "panels": [
@@ -7531,7 +8042,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 67
+        "y": 94
       },
       "id": 141,
       "panels": [
@@ -8860,7 +9371,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 68
+        "y": 95
       },
       "id": 151,
       "panels": [
@@ -9489,7 +10000,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 69
+        "y": 96
       },
       "id": 156,
       "panels": [
@@ -9698,7 +10209,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 70
+        "y": 97
       },
       "id": 158,
       "panels": [
@@ -9907,7 +10418,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 98
       },
       "id": 160,
       "panels": [
@@ -10396,7 +10907,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 72
+        "y": 99
       },
       "id": 164,
       "panels": [
@@ -10802,7 +11313,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 73
+        "y": 100
       },
       "panels": []
     },
@@ -10813,7 +11324,7 @@
         "h": 14,
         "w": 8,
         "x": 0,
-        "y": 74
+        "y": 101
       },
       "options": {
         "mode": "markdown",
@@ -10827,7 +11338,7 @@
         "h": 14,
         "w": 8,
         "x": 8,
-        "y": 74
+        "y": 101
       },
       "options": {
         "mode": "markdown",
@@ -10841,7 +11352,7 @@
         "h": 14,
         "w": 8,
         "x": 16,
-        "y": 74
+        "y": 101
       },
       "options": {
         "mode": "markdown",

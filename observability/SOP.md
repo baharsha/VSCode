@@ -519,16 +519,22 @@ Audience is every GenAI Hub user, not the platform team. Two rules follow from t
 
 ### Keep provider detail collapsed
 
-The page carried **96 panels firing 82 Log Analytics queries every 5 minutes, per open
-tab** — roughly 984 queries/hour per viewer, before multiplying by audience size.
+The page carried 96 panels. **Note the 70 per-model tiles do NOT each run a query** — they
+read a shared result via the `-- Dashboard --` datasource pointing at panel id 9000. Counting
+targets overstates load badly; count only targets whose datasource is not `-- Dashboard --`.
 
-Grafana does not execute queries inside a **collapsed** row until it is expanded. The seven
-per-provider model sections (67 stat tiles) are therefore collapsed by default:
+Grafana does not execute queries inside a **collapsed** row until expanded. The seven
+per-provider sections (67 tiles) are collapsed by default:
 
 | | Before | After |
 |---|---|---|
-| Panels on first load | 86 | 20 |
-| Queries on first load | 82 | 16 |
+| Panels on first load | 86 | 25 |
+| **Real** datasource queries | 15 | 13 |
+| Shared panel references | 67 | 7 |
+
+The saving is mostly **render and scroll**, not query volume — the shared-panel design already
+kept query count low. An earlier version of this section claimed an 82 → 16 query reduction;
+that was wrong because it counted panel references as queries.
 
 Nothing is hidden — each row header states its model count and expands in one click. **If
 you add provider tiles, add them inside a collapsed row.** Uncollapsing these sections
@@ -552,10 +558,29 @@ The bottom row carries usage guidance, a cost table and troubleshooting. Rates t
 cost advice follows from the rates: output is ~5x input, cached input ~10% of input, tier
 choice is a ~5x lever, long context ~2x.
 
+
+### Reliability history
+
+Three rolling availability tiles (24h / 7d / 30d) plus a daily series over 60 days, all
+scoped to the **model gateway only** (`/deployments/` paths and `anthropic-api`). That
+distinction matters: over 30 days the model gateway ran **99.119%** while other platform
+APIs ran **97.023%**, so a blended figure understates the service consumers actually call.
+
+**There is deliberately no 90-day figure** — `AzureDiagnostics` retention is 63 days, so a
+90-day window silently reports 63 days of data as if it were 90.
+
+The daily chart uses `axisSoftMin` rather than a hard `min`. A hard floor of 95 was tried
+first and would have **clipped the worst day off the chart entirely** — observed daily
+minimum is 73.78%. On a status page, hiding the bad day is the one thing the chart must not do.
+
+### Finding a model without scrolling
+
+"All models — searchable status" is a filterable table of every model with live availability.
+It reads the **same shared panel result** (id 9000) via the `-- Dashboard --` datasource, so it
+adds a searchable view at **zero query cost**. Prefer this pattern over adding template
+variables — the per-model tiles are static panels and a variable cannot hide them.
+
 ### Still open for this page
 
-- Historical uptime (30/90-day), which is what tells a wider audience whether to *build* on
-  the platform, as distinct from whether it is up now
-- A provider/model template variable, so a user of two models does not scroll past 68 tiles
 - An onboarding pointer — new users land here first and there is nothing telling them how
   to get access
