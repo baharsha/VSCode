@@ -203,20 +203,40 @@ def dlink(field, title, uid, slug, var, width=None):
     return {"matcher": {"id": "byName", "options": field}, "properties": props}
 
 
+# Token volumes taken from BILLED QUANTITIES, so every model family is covered
+# including Anthropic. Unit is inferred from price magnitude: Azure quotes some
+# meters per 1K tokens and some per 1M, and the meter name does not reliably say
+# which. A unit price >= 0.1 EUR means the unit is 1M tokens. Verified: derived
+# prices cluster at ~4.24-4.29 EUR/1M for Opus and 2.54 for Sonnet.
+BILLED_TOKENS = """let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);
+GenAIModelCost_CL
+| where ScanId == Latest and Grain == 'Monthly'
+| where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')
+| where UsageQuantity > 0
+| extend Unit = iff(Cost / UsageQuantity >= 0.1, 1000000.0, 1000.0)
+| extend Tokens = UsageQuantity * Unit
+| extend TokenType = case(
+    Meter has 'cache-hit' or Meter has 'cchd' or Meter has 'cached' or Meter has ' cd ' or Meter has 'Cd Inp', 'Cache read',
+    Meter has 'cache-write' or Meter has 'Cd Wr', 'Cache write',
+    Meter has 'output' or Meter has ' opt ' or Meter has 'Outp' or Meter has 'outpt', 'Output',
+    Meter has 'input' or Meter has ' inp ' or Meter has 'Inp', 'Input', 'Other')
+| where TokenType != 'Other'
+"""
+
 panels = []
 
 # ================= AT A GLANCE =================
 panels.append(row("Consumption at a Glance", {"h": 1, "w": 24, "x": 0, "y": 0}))
 
-panels.append(stat("Total Tokens", "All prompt and completion tokens through the model gateway in the selected window, across every model family.",
+panels.append(stat("Total Tokens (OpenAI family)", "Prompt and completion tokens from AppMetrics. Covers OpenAI, Kimi and embeddings ONLY - AppMetrics carries no Anthropic rows. For Anthropic volumes see Billed Token Volume by Model Family below.",
                    BASE + FILT + "| summarize Tokens=sum(Sum) by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
                    "short", BLUE, {"h": 5, "w": 4, "x": 0, "y": 1}))
 
-panels.append(stat("Prompt Tokens", "Input tokens. Usually the cheaper half of the bill, but the larger volume.",
+panels.append(stat("Prompt Tokens (OpenAI family)", "Input tokens from AppMetrics. Excludes Anthropic.",
                    BASE + FILT + "| where Name == 'Prompt Tokens'\n| summarize Tokens=sum(Sum) by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
                    "short", BLUE, {"h": 5, "w": 4, "x": 4, "y": 1}))
 
-panels.append(stat("Completion Tokens", "Generated tokens. Typically priced several times higher than input, so this drives cost far more than its volume suggests.",
+panels.append(stat("Completion Tokens (OpenAI family)", "Generated tokens from AppMetrics. Excludes Anthropic. Priced several times higher than input.",
                    BASE + FILT + "| where Name == 'Completion Tokens'\n| summarize Tokens=sum(Sum) by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
                    "short", BLUE, {"h": 5, "w": 4, "x": 8, "y": 1}))
 
@@ -231,7 +251,7 @@ panels.append(stat("Active Products", "Distinct APIM products consuming models i
                    BASE + FILT + "| summarize Products=dcount(Product)",
                    "short", BLUE, {"h": 5, "w": 4, "x": 16, "y": 1}, calc="lastNotNull", graph="none"))
 
-panels.append(stat("Active Models", "Distinct model deployments receiving traffic. Compare with the total deployed estate to spot models nobody uses.",
+panels.append(stat("Active Models (OpenAI family)", "Distinct deployments in AppMetrics. Excludes Anthropic.",
                    BASE + FILT + "| summarize Models=dcount(Model)",
                    "short", BLUE, {"h": 5, "w": 4, "x": 20, "y": 1}, calc="lastNotNull", graph="none"))
 
@@ -269,8 +289,8 @@ panels.append(table("Product Chargeback Detail",
 # ================= MODEL ECONOMICS =================
 panels.append(row("Model Economics", {"h": 1, "w": 24, "x": 0, "y": 28}))
 
-panels.append(bar("Tokens by Model",
-                  "Total tokens per model deployment. Concentration here tells you which models actually matter commercially.",
+panels.append(bar("Tokens by Model (OpenAI family)",
+                  "Tokens per deployment from AppMetrics. Anthropic models are absent - see the billed-token panel for those.",
                   BASE + FILT + "| summarize Tokens=sum(Sum) by Model\n| top 15 by Tokens desc",
                   "short", {"h": 10, "w": 10, "x": 0, "y": 29}))
 
@@ -281,8 +301,29 @@ panels.append(ts("Input vs Output Tokens Over Time",
                  "| order by TimeGenerated asc",
                  "short", {"h": 10, "w": 14, "x": 10, "y": 29}))
 
-panels.append(table("Model Consumption Detail",
-                    "Per-model token split with the products and regions consuming each. Output share is the cost-weighting signal to watch until rates are entered.",
+panels.append(table(
+    "Billed Token Volume by Model Family (all models)",
+    "Exact token volumes for EVERY model family including Anthropic, taken from billed quantities rather than logs. This is the only accurate source of Claude token counts - GatewayLlmLogs never populates completion or cached tokens. Monthly grain, so it does not follow fine time ranges.",
+    BILLED_TOKENS +
+    "| summarize Input=sum(iff(TokenType=='Input', Tokens, 0.0)),\n"
+    "            Output=sum(iff(TokenType=='Output', Tokens, 0.0)),\n"
+    "            ['Cache read']=sum(iff(TokenType=='Cache read', Tokens, 0.0)),\n"
+    "            ['Cache write']=sum(iff(TokenType=='Cache write', Tokens, 0.0)),\n"
+    "            ['Cost EUR']=round(sum(Cost), 2) by ['Model family']=MeterSubCategory\n"
+    "| extend Total = Input + Output + ['Cache read'] + ['Cache write']\n"
+    "| project ['Model family'], Total, Input, Output, ['Cache read'], ['Cache write'], ['Cost EUR']\n"
+    "| order by ['Cost EUR'] desc",
+    {"h": 12, "w": 24, "x": 0, "y": 38},
+    [w("Model family", 260),
+     grad("Total", BLUE, "short", 0, 120), grad("Input", BLUE, "short", 0, 110),
+     grad("Output", BLUE, "short", 0, 110),
+     grad("Cache read", [{"color": "green", "value": None}], "short", 0, 120),
+     grad("Cache write", [{"color": "yellow", "value": None}], "short", 0, 120),
+     grad("Cost EUR", GREEN, "currencyEUR", 2, 120)],
+    sort_col="Cost EUR"))
+
+panels.append(table("Model Consumption Detail (OpenAI family)",
+                    "Per-deployment token split with consuming products and regions. Sourced from AppMetrics, which carries NO Anthropic rows - Claude models will not appear here. Accurate Anthropic volumes are in Billed Token Volume by Model Family.",
                     BASE + FILT +
                     "| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens'),\n"
                     "            Products=dcount(Product), Regions=dcount(Region) by Model\n"

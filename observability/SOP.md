@@ -334,6 +334,38 @@ Note also that Claude requests hit `/anthropic/v1/messages` with **no `/deployme
 segment** - the model name lives in the request body, which `GatewayLogs` does not
 capture. Any deployment-name extraction will silently miss all Claude traffic.
 
+
+### 5.7 Anthropic token volumes come from billing, not logs
+
+`GatewayLlmLogs` cannot supply Anthropic token counts. Measured over 2 days:
+
+| Row class | Rows | Prompt set | Completion set | Cached set |
+|---|---|---|---|---|
+| Has `deploymentName_s` | 41,990 | 23,967 (57%) | **0** | **0** |
+| No `deploymentName_s` | 73,289 | **0** | **0** | **0** |
+
+Completion and cached tokens are **never** populated. `AppMetrics` carries no Anthropic
+rows at all.
+
+**Accurate Anthropic volumes come from billed quantities** in `GenAIModelCost_CL`
+(`Grain == 'Monthly'`, which retains `Meter`). One trap: Azure quotes some meters per
+**1K** tokens and others per **1M**, and the meter name does not reliably say which -
+`paygo-inf-*` meters are per-1M while older `paygo-inference-*` meters are per-1K.
+
+Infer the unit from price magnitude:
+
+```kusto
+| extend Unit = iff(Cost / UsageQuantity >= 0.1, 1000000.0, 1000.0)
+| extend Tokens = UsageQuantity * Unit
+```
+
+Validate after any change by checking derived `EUR per 1M` clusters sensibly - Opus
+variants land at ~4.24-4.29, Sonnet at ~2.54. A naive rule keyed on the meter name
+produced 453 **billion** tokens for Claude Opus 4.5 against EUR 1,945 of spend, which
+is off by three orders of magnitude.
+
+This is monthly grain, so it does not follow fine time ranges.
+
 ### 5.3 `GatewayLlmLogs` telemetry defect (needs APIM owner)
 
 Over 30 days it reported 472M prompt tokens with **`completionTokens_d = 0` and `promptCachedTokens_d = 0`**, while billing showed billions of cache-hit tokens. Two consequences:
