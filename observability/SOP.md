@@ -308,9 +308,31 @@ Normalise per §3.3, then update the `Rates` datatable in the chargeback dashboa
 **Check:** `GenAIModelCost_CL | where Grain=='Resource' and ResourceId != '' | count`
 **If still zero:** repeat §4.3. Until then, the per-AI-account cost panel on the Management Views stays static.
 
-### 5.2 Chargeback cost figures are incomplete by design
+### 5.2 Chargeback cost is now allocated from actual billing (fixed)
 
-`genai-token-chargeback` cost panels are built on `AppMetrics`, which carries **no Anthropic data**. They understate reality substantially. The dashboard carries a coverage banner saying so. **Use `genai-actual-cost` for anything financial.**
+`genai-token-chargeback` originally estimated cost as tokens x rates and ran **81% below
+actual** (EUR 12,502 vs EUR 66,022 for 1-30 Jul), because `AppMetrics` carries no
+Anthropic rows.
+
+**Rebuilt to allocate actual billed cost instead of estimating it.** Totals now reconcile
+to the invoice exactly - verified at **EUR 113,708.93 across all three cost panels, 0.00%
+variance** over a 60-day window.
+
+Method:
+
+| Family | Allocated by | Why |
+|---|---|---|
+| Claude | share of `anthropic-api` requests | `AppMetrics` has no Anthropic rows; `GatewayLlmLogs.deploymentName_s` is empty on ~64% of rows |
+| OpenAI, Kimi, embeddings | share of tokens (`AppMetrics`) | complete for this family and more precise |
+
+**Remaining limitation:** the total is exact, the per-product split is an *allocation*.
+Claude cost is spread by request count, so a product sending long Opus prompts and one
+sending short Haiku prompts are charged alike per request. Invoice-grade per-product
+Claude cost needs APIM to emit per-request Anthropic token counts (see 5.3).
+
+Note also that Claude requests hit `/anthropic/v1/messages` with **no `/deployments/`
+segment** - the model name lives in the request body, which `GatewayLogs` does not
+capture. Any deployment-name extraction will silently miss all Claude traffic.
 
 ### 5.3 `GatewayLlmLogs` telemetry defect (needs APIM owner)
 

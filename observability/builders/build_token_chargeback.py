@@ -21,33 +21,46 @@ BASE = ("AppMetrics\n"
 FILT = ("| where '*' in (${product:singlequote}) or Product in (${product:singlequote})\n"
         "| where '*' in (${model:singlequote}) or Model in (${model:singlequote})\n")
 
-RATE_CARD = """// ===================================================================
-// RATE CARD - EUR per 1,000,000 tokens
-// DERIVED FROM ACTUAL AZURE BILLING (Cost Management, Jul 2026).
-// Each rate = billed cost / billed quantity for that model's meters.
-// Meters quoted per 1K tokens were normalised to per 1M.
-// These are effective actual rates, not list prices. Re-derive when
-// your commercial terms change. Models showing 0.0 had no billable
-// meter in the period - their cost will read 0 and 'Rate set' = no.
-// ===================================================================
-let Currency = 'EUR';
-let Rates = datatable(Model:string, InPer1M:real, OutPer1M:real)[
-%s
-];
+# ---------------------------------------------------------------------------
+# COST ALLOCATION - actual billed cost, distributed across products.
+#
+# We do NOT estimate cost from tokens. Total always reconciles to the real
+# Azure bill because we start from it and divide it up.
+#
+#   Claude  -> allocated by share of anthropic-api REQUESTS. AppMetrics carries
+#              no Anthropic rows and GatewayLlmLogs has deploymentName_s empty
+#              on ~64% of rows, so requests are the only complete Claude signal.
+#   OpenAI  -> allocated by share of TOKENS from AppMetrics, which is complete
+#              and more precise for that family.
+# ---------------------------------------------------------------------------
+ALLOC = """let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);
+let C = GenAIModelCost_CL
+  | where ScanId == Latest and Grain == 'Daily'
+  | where UsageDate >= $__timeFrom and UsageDate < $__timeTo
+  | where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')
+  | extend Bucket = iff(MeterSubCategory startswith 'Claude', 'Claude', 'OpenAI');
+let ClaudeCost = toscalar(C | where Bucket == 'Claude' | summarize sum(Cost));
+let OpenAICost = toscalar(C | where Bucket == 'OpenAI' | summarize sum(Cost));
+let ClaudeW = AzureDiagnostics
+  | where Category == 'GatewayLogs' and TimeGenerated >= $__timeFrom and TimeGenerated < $__timeTo
+  | where tostring(apiId_s) == 'anthropic-api' and tostring(url_s) has '/messages'
+        and tostring(url_s) !has 'count_tokens'
+  | summarize W = todouble(count()) by Product = tostring(productId_s), Consumer = tostring(apimSubscriptionId_s)
+  | where isnotempty(Product);
+let OpenAIW = AppMetrics
+  | where TimeGenerated >= $__timeFrom and TimeGenerated < $__timeTo
+  | where Name in ('Prompt Tokens', 'Completion Tokens')
+  | extend P = todynamic(Properties)
+  | extend Product = tostring(P['Product ID']), Consumer = tostring(P['Subscription ID'])
+  | where isnotempty(Product)
+  | summarize W = sum(Sum) by Product, Consumer;
+let CT = toscalar(ClaudeW | summarize sum(W));
+let OT = toscalar(OpenAIW | summarize sum(W));
+let Alloc = union
+    (ClaudeW | extend Cost = ClaudeCost * W / iff(CT == 0, 1.0, CT), Family = 'Claude'),
+    (OpenAIW | extend Cost = OpenAICost * W / iff(OT == 0, 1.0, OT), Family = 'OpenAI and others');
 """
 
-
-def build_rates():
-    import json as _j
-    rows = _j.load(open(os.path.join(_HERE, "rates.json")))
-    have = {r[0] for r in rows}
-    models = [m.strip() for m in open(os.path.join(_HERE, "models.txt")).read().splitlines() if m.strip()]
-    out = [f'    "{m}", {i}, {o}' for m, i, o in rows]
-    out += [f'    "{m}", 0.0, 0.0' for m in models if m not in have]
-    return ",\n".join(out)
-
-
-RATES = RATE_CARD % build_rates()
 
 
 def q(query, fmt="time_series", ref="A"):
@@ -55,7 +68,10 @@ def q(query, fmt="time_series", ref="A"):
         "refId": ref, "queryType": "Azure Log Analytics", "datasource": DS,
         "subscription": SUB, "subscriptions": [],
         "azureLogAnalytics": {"query": query, "resource": LAW, "resultFormat": fmt,
-                              "dashboardTime": True, "timeColumn": "TimeGenerated"},
+                              # queries that filter UsageDate themselves opt out of
+                              # dashboardTime; the rest stay bound to the time picker
+                              "dashboardTime": "$__timeFrom" not in query,
+                              "timeColumn": "TimeGenerated"},
     }]
 
 
@@ -282,78 +298,69 @@ panels.append(table("Model Consumption Detail",
 
 # ================= RATE CARD & COST (collapsed) =================
 cost_panels = [
-    text("Cost coverage - read this first", """
-### Rates are real. Coverage is not complete.
+    text("How this cost is calculated", """
+### Actual billed cost, allocated - not estimated
 
-Rates below are **derived from actual Azure billing** (Cost Management, Jul 2026), in **EUR per 1M tokens**, split input/output.
+Totals come straight from Azure Cost Management via `GenAIModelCost_CL`, so
+**the figures here reconcile to the real invoice**. Nothing is derived from a
+price list.
 
-### What is missing
+Allocation across products uses the best complete signal for each family:
 
-These panels are built on `AppMetrics`, which **does not carry any Anthropic/Claude model**. Claude was about **EUR 36k of EUR 66k actual model spend in July** - so cost here covers OpenAI, Kimi and embeddings **only**.
+| Family | Allocated by | Why |
+|---|---|---|
+| Claude | share of `anthropic-api` requests | AppMetrics carries no Anthropic rows, and `GatewayLlmLogs` has `deploymentName_s` empty on ~64% of rows |
+| OpenAI, Kimi, embeddings | share of tokens (AppMetrics) | complete for this family, and more precise than request counts |
 
-Validated against billing for 1-30 Jul:
+### Read this before using it for chargeback
 
-| | EUR |
-|---|---|
-| Estimated here | 12,502 |
-| Actual (all models) | 66,022 |
-| Actual (excl. Claude) | ~30,000 |
+The **total is exact**. The **per-product split is an allocation**, not a
+measurement — Claude cost is spread by request count, so a product sending long
+Opus prompts and one sending short Haiku prompts are treated alike per request.
+Directionally right, not invoice-grade per product.
 
-The remaining gap after Claude is **long-context and cache-write meters**, which are billed at premium rates this model does not represent.
+Fixing that properly needs APIM to emit per-request token counts for Anthropic.
+See SOP §5.3.
+""", {"h": 10, "w": 7, "x": 0, "y": 50}),
 
-### Why Claude cannot simply be added
+    table("Actual Cost by Product",
+          "Billed model spend allocated to each APIM product. Totals reconcile to the Azure invoice. Claude is included - unlike any token-derived estimate.",
+          ALLOC + "Alloc\n"
+          "| summarize ['Total EUR'] = round(sum(Cost), 2),\n"
+          "            ['Claude EUR'] = round(sumif(Cost, Family == 'Claude'), 2),\n"
+          "            ['OpenAI EUR'] = round(sumif(Cost, Family != 'Claude'), 2) by Product\n"
+          "| order by ['Total EUR'] desc",
+          {"h": 10, "w": 17, "x": 7, "y": 50},
+          [w("Product", 420), grad("Total EUR", GREEN, "currencyEUR", 2, 130),
+           grad("Claude EUR", BLUE, "currencyEUR", 2, 130),
+           grad("OpenAI EUR", BLUE, "currencyEUR", 2, 130)],
+          sort_col="Total EUR"),
 
-`GatewayLlmLogs` is the only log source with Claude tokens and it is **incomplete**: over 30 days it reports 472M prompt tokens and **zero** completion and **zero** cached tokens, while billing shows billions of cache-hit tokens. It is not reliable for costing.
+    table("Actual Cost by Model Family",
+          "Billed spend per model family, straight from Cost Management. These figures are exact - no allocation involved.",
+          "let Latest = toscalar(GenAIModelCost_CL | summarize arg_max(TimeGenerated, ScanId) | project ScanId);\n"
+          "GenAIModelCost_CL\n"
+          "| where ScanId == Latest and Grain == 'Daily'\n"
+          "| where UsageDate >= $__timeFrom and UsageDate < $__timeTo\n"
+          "| where MeterCategory in ('Foundry Models', 'SaaS', 'Cognitive Services')\n"
+          "| summarize ['Cost EUR'] = round(sum(Cost), 2) by ['Model family'] = MeterSubCategory\n"
+          "| order by ['Cost EUR'] desc",
+          {"h": 10, "w": 12, "x": 0, "y": 60},
+          [w("Model family", 300), grad("Cost EUR", GREEN, "currencyEUR", 2, 140)],
+          sort_col="Cost EUR"),
 
-**Treat these figures as a directional lower bound for OpenAI-family models, not a bill.**
-Azure Cost Management remains the source of truth.
-""", {"h": 9, "w": 7, "x": 0, "y": 50}),
-
-    table("Estimated Cost by Product",
-          "Cost per product using rates derived from actual Azure billing. EXCLUDES all Claude models (AppMetrics carries no Anthropic data) and does not model long-context or cache-write premiums, so totals run well below the real bill. Directional only.",
-          RATES + BASE + FILT +
-          "| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens') by Product, Model\n"
-          "| join kind=leftouter Rates on Model\n"
-          "| extend InPer1M = todouble(coalesce(InPer1M, 0.0)), OutPer1M = todouble(coalesce(OutPer1M, 0.0))\n"
-          "| extend ['Input cost'] = Prompt / 1000000.0 * InPer1M,\n"
-          "         ['Output cost'] = Completion / 1000000.0 * OutPer1M\n"
-          "| summarize ['Input cost']=round(sum(['Input cost']), 2), ['Output cost']=round(sum(['Output cost']), 2),\n"
-          "            Tokens=sum(Prompt+Completion) by Product\n"
-          "| extend ['Total cost'] = round(['Input cost'] + ['Output cost'], 2)\n"
-          "| project Product, ['Total cost'], ['Input cost'], ['Output cost'], Tokens\n"
-          "| order by ['Total cost'] desc, Tokens desc",
-          {"h": 9, "w": 17, "x": 7, "y": 50},
-          [w("Product", 400), grad("Total cost", GREEN, "currencyEUR", 2, 130),
-           grad("Tokens", BLUE, "short", 0, 130)],
-          sort_col="Total cost"),
-
-    table("Estimated Cost by Model",
-          "Cost per model using rates derived from actual Azure billing (EUR per 1M tokens). Claude models are absent entirely - AppMetrics does not emit them. Rate set = no means no billable meter was found for that deployment.",
-          RATES + BASE + FILT +
-          "| summarize Prompt=sumif(Sum, Name=='Prompt Tokens'), Completion=sumif(Sum, Name=='Completion Tokens') by Model\n"
-          "| join kind=leftouter Rates on Model\n"
-          "| extend InPer1M = todouble(coalesce(InPer1M, 0.0)), OutPer1M = todouble(coalesce(OutPer1M, 0.0))\n"
-          "| extend ['Input cost'] = round(Prompt / 1000000.0 * InPer1M, 2),\n"
-          "         ['Output cost'] = round(Completion / 1000000.0 * OutPer1M, 2)\n"
-          "| extend Tokens = Prompt + Completion\n"
-          "| extend ['Total cost'] = round(['Input cost'] + ['Output cost'], 2)\n"
-          "| extend ['Cost per 1M'] = round(['Total cost'] / iff(Tokens==0, 1.0, Tokens / 1000000.0), 2)\n"
-          "| extend ['Rate set'] = iff(InPer1M == 0.0 and OutPer1M == 0.0, 'no', 'yes')\n"
-          "| project Model, ['Total cost'], ['Input cost'], ['Output cost'], ['Cost per 1M'], Tokens, ['Rate set']\n"
-          "| order by Tokens desc",
-          {"h": 11, "w": 24, "x": 0, "y": 59},
-          [dlink("Model", "Gateway health for this deployment", "genai-model-operations", "genai-hub-model-operations", "deployment", width=340),
-           grad("Total cost", GREEN, "currencyEUR", 2, 130),
-           grad("Tokens", BLUE, "short", 0, 130),
-           {"matcher": {"id": "byName", "options": "Rate set"}, "properties": [
-               {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "basic"}},
-               {"id": "mappings", "value": [{"type": "value", "options": {
-                   "no": {"color": "orange", "index": 0},
-                   "yes": {"color": "green", "index": 1}}}]},
-               {"id": "custom.width", "value": 100}]}],
-          sort_col="Tokens"),
+    table("Actual Cost by Consumer",
+          "Billed model spend allocated one level below product, to the APIM subscription actually making the calls.",
+          ALLOC + "Alloc\n"
+          "| summarize ['Total EUR'] = round(sum(Cost), 2) by Consumer, Product\n"
+          "| order by ['Total EUR'] desc",
+          {"h": 10, "w": 12, "x": 12, "y": 60},
+          [w("Consumer", 260), w("Product", 260),
+           grad("Total EUR", GREEN, "currencyEUR", 2, 130)],
+          sort_col="Total EUR"),
 ]
-panels.append(row("Estimated Cost", {"h": 1, "w": 24, "x": 0, "y": 49},
+
+panels.append(row("Actual Cost (allocated from Azure billing)", {"h": 1, "w": 24, "x": 0, "y": 49},
                   collapsed=False, panels=None))
 panels.extend(cost_panels)
 
@@ -397,10 +404,10 @@ def var(name, label, query, desc):
 dashboard = {
     "uid": "genai-token-chargeback",
     "title": "GenAI Hub - Token Economics and Chargeback",
-    "description": ("Live token consumption and chargeback across every model family, built on the "
-                    "product / consumer / model / region dimensions carried in AppMetrics. Denominated "
-                    "in tokens: an editable rate card in the Rate Card section turns on cost without "
-                    "guessing prices."),
+    "description": ("Token consumption and cost chargeback for GenAI Hub. Cost is ACTUAL billed spend "
+                    "from Azure Cost Management, allocated across products - Claude by request share, "
+                    "OpenAI by token share - so totals reconcile to the invoice and Claude is included. "
+                    "Token panels come from AppMetrics and cover OpenAI-family models only."),
     "tags": ["genai-hub", "production", "cost", "chargeback", "finops"],
     "timezone": "browser", "editable": True, "graphTooltip": 1,
     "refresh": "30m", "schemaVersion": 39,
@@ -428,5 +435,4 @@ for p in panels:
     flat.append(p)
     flat.extend(p.get("panels", []))
 print("panels:", len(flat), "| rows:", sum(1 for p in flat if p["type"] == "row"))
-print("rate card models:", RATES.count(", 0.0, 0.0"))
 print("written:", out)
