@@ -12,10 +12,10 @@
   "panels": [
     {
       "datasource": {
-        "type": "grafana-azure-monitor-datasource",
-        "uid": "azure-monitor-oob"
+        "type": "datasource",
+        "uid": "-- Dashboard --"
       },
-      "description": "Plain-language answer to 'can I use GenAI Hub right now?'. Derived from live gateway success rate over the selected window. Detail for every model is in the provider sections below.",
+      "description": "Plain-language answer to 'can I use GenAI Hub right now?'. Shares its result with the Overall Service Status tile, so both always agree and it costs no extra query.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -85,7 +85,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 1,
+      "id": 9100,
       "options": {
         "colorMode": "background_solid",
         "graphMode": "none",
@@ -103,19 +103,12 @@
       },
       "targets": [
         {
-          "azureLogAnalytics": {
-            "query": "union\n    AzureDiagnostics,\n    workspace(\"aa6cc9fc-f7cd-4720-9403-2ffaca04fd83\").AzureDiagnostics\n| where ResourceProvider == \"MICROSOFT.APIMANAGEMENT\"\n    and Category == \"GatewayLogs\"\n| extend Code=toint(column_ifexists(\"responseCode_d\", 0))\n| summarize Requests=count(), Failures=countif(Code >= 500)\n| extend AvailabilityPct=iff(\n    Requests == 0,\n    real(null),\n    100.0 * todouble(Requests - Failures) / todouble(Requests)\n  )\n| project Value=case(\n    Requests == 0, 0,\n    AvailabilityPct >= 97.0, 4,\n    AvailabilityPct >= 95.0, 3,\n    AvailabilityPct >= 90.0, 2,\n    1\n  )",
-            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
-            "resultFormat": "table"
-          },
-          "datasource": {
-            "type": "grafana-azure-monitor-datasource",
-            "uid": "azure-monitor-oob"
-          },
-          "queryType": "Azure Log Analytics",
           "refId": "A",
-          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
-          "subscriptions": []
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 1
         }
       ],
       "title": "GenAI Hub \u2014 current status",
@@ -660,6 +653,47 @@
       "type": "table"
     },
     {
+      "id": 9101,
+      "type": "table",
+      "title": "",
+      "description": "Hidden source: rolling model availability.",
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 1,
+        "x": 0,
+        "y": 26
+      },
+      "transparent": true,
+      "options": {
+        "showHeader": false
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "Azure Log Analytics",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor-oob"
+          },
+          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
+          "azureLogAnalytics": {
+            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
+            "resultFormat": "table",
+            "dashboardTime": false,
+            "query": "let G = union AzureDiagnostics, workspace(\"aa6cc9fc-f7cd-4720-9403-2ffaca04fd83\").AzureDiagnostics\n  | where ResourceProvider == 'MICROSOFT.APIMANAGEMENT' and Category == 'GatewayLogs'\n  | extend IsModel = tostring(url_s) has '/deployments/' or tostring(apiId_s) == 'anthropic-api'\n  | where IsModel\n  | extend Code = toint(column_ifexists('responseCode_d', 0));\nlet A = (d:timespan) { toscalar(\n  G | where TimeGenerated > ago(d)\n    | summarize R = count(), F = countif(Code >= 500)\n    | project iff(R == 0, real(null), round(100.0 * todouble(R - F) / todouble(R), 3))) };\nprint Last24h = A(24h), Last7d = A(7d), Last30d = A(30d)"
+          }
+        }
+      ]
+    },
+    {
       "type": "row",
       "title": "Service Reliability History",
       "collapsed": false,
@@ -667,39 +701,33 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 27
       },
-      "panels": []
+      "panels": [],
+      "id": 9200
     },
     {
       "type": "stat",
       "title": "Model availability \u2014 last 24h",
-      "description": "Share of model requests not returning a server error, over the last 24 hours. Model gateway only; other platform APIs are excluded so this reflects the service you call.",
+      "description": "Share of model requests not returning a server error, over the last 24 hours. Model gateway only; other platform APIs are excluded so this reflects the service you call. Shares one query with the other two windows.",
       "datasource": {
-        "type": "grafana-azure-monitor-datasource",
-        "uid": "azure-monitor-oob"
+        "type": "datasource",
+        "uid": "-- Dashboard --"
       },
       "gridPos": {
         "h": 5,
         "w": 5,
         "x": 0,
-        "y": 27
+        "y": 28
       },
       "targets": [
         {
           "refId": "A",
-          "queryType": "Azure Log Analytics",
           "datasource": {
-            "type": "grafana-azure-monitor-datasource",
-            "uid": "azure-monitor-oob"
+            "type": "datasource",
+            "uid": "-- Dashboard --"
           },
-          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
-          "azureLogAnalytics": {
-            "query": "union AzureDiagnostics, workspace(\"aa6cc9fc-f7cd-4720-9403-2ffaca04fd83\").AzureDiagnostics\n| where ResourceProvider == 'MICROSOFT.APIMANAGEMENT' and Category == 'GatewayLogs'\n| where TimeGenerated > ago(24h)\n| extend IsModel = tostring(url_s) has '/deployments/' or tostring(apiId_s) == 'anthropic-api'\n| where IsModel\n| summarize R=count(), F=countif(toint(column_ifexists('responseCode_d',0)) >= 500)\n| project Availability = round(100.0 * todouble(R - F) / todouble(R), 3)",
-            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
-            "resultFormat": "table",
-            "dashboardTime": false
-          }
+          "panelId": 9101
         }
       ],
       "fieldConfig": {
@@ -746,40 +774,34 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
+          "fields": "/^Last24h$/",
           "values": false
         }
-      }
+      },
+      "id": 9201
     },
     {
       "type": "stat",
       "title": "Model availability \u2014 last 7 days",
-      "description": "Rolling 7-day model availability.",
+      "description": "Rolling 7-day model availability. Shares one query with the other two windows.",
       "datasource": {
-        "type": "grafana-azure-monitor-datasource",
-        "uid": "azure-monitor-oob"
+        "type": "datasource",
+        "uid": "-- Dashboard --"
       },
       "gridPos": {
         "h": 5,
         "w": 5,
         "x": 5,
-        "y": 27
+        "y": 28
       },
       "targets": [
         {
           "refId": "A",
-          "queryType": "Azure Log Analytics",
           "datasource": {
-            "type": "grafana-azure-monitor-datasource",
-            "uid": "azure-monitor-oob"
+            "type": "datasource",
+            "uid": "-- Dashboard --"
           },
-          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
-          "azureLogAnalytics": {
-            "query": "union AzureDiagnostics, workspace(\"aa6cc9fc-f7cd-4720-9403-2ffaca04fd83\").AzureDiagnostics\n| where ResourceProvider == 'MICROSOFT.APIMANAGEMENT' and Category == 'GatewayLogs'\n| where TimeGenerated > ago(7d)\n| extend IsModel = tostring(url_s) has '/deployments/' or tostring(apiId_s) == 'anthropic-api'\n| where IsModel\n| summarize R=count(), F=countif(toint(column_ifexists('responseCode_d',0)) >= 500)\n| project Availability = round(100.0 * todouble(R - F) / todouble(R), 3)",
-            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
-            "resultFormat": "table",
-            "dashboardTime": false
-          }
+          "panelId": 9101
         }
       ],
       "fieldConfig": {
@@ -826,40 +848,34 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
+          "fields": "/^Last7d$/",
           "values": false
         }
-      }
+      },
+      "id": 9202
     },
     {
       "type": "stat",
       "title": "Model availability \u2014 last 30 days",
-      "description": "Rolling 30-day model availability. This is the figure to use when judging whether to build on the platform.",
+      "description": "Rolling 30-day model availability. This is the figure to use when judging whether to build on the platform. Shares one query with the other two windows.",
       "datasource": {
-        "type": "grafana-azure-monitor-datasource",
-        "uid": "azure-monitor-oob"
+        "type": "datasource",
+        "uid": "-- Dashboard --"
       },
       "gridPos": {
         "h": 5,
         "w": 5,
         "x": 10,
-        "y": 27
+        "y": 28
       },
       "targets": [
         {
           "refId": "A",
-          "queryType": "Azure Log Analytics",
           "datasource": {
-            "type": "grafana-azure-monitor-datasource",
-            "uid": "azure-monitor-oob"
+            "type": "datasource",
+            "uid": "-- Dashboard --"
           },
-          "subscription": "e4e9074e-0238-41e6-929e-edda76b67e79",
-          "azureLogAnalytics": {
-            "query": "union AzureDiagnostics, workspace(\"aa6cc9fc-f7cd-4720-9403-2ffaca04fd83\").AzureDiagnostics\n| where ResourceProvider == 'MICROSOFT.APIMANAGEMENT' and Category == 'GatewayLogs'\n| where TimeGenerated > ago(30d)\n| extend IsModel = tostring(url_s) has '/deployments/' or tostring(apiId_s) == 'anthropic-api'\n| where IsModel\n| summarize R=count(), F=countif(toint(column_ifexists('responseCode_d',0)) >= 500)\n| project Availability = round(100.0 * todouble(R - F) / todouble(R), 3)",
-            "resource": "/subscriptions/e4e9074e-0238-41e6-929e-edda76b67e79/resourceGroups/gaih-prd01-mon-rg/providers/Microsoft.OperationalInsights/workspaces/gaih-prd01-law0",
-            "resultFormat": "table",
-            "dashboardTime": false
-          }
+          "panelId": 9101
         }
       ],
       "fieldConfig": {
@@ -906,10 +922,11 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
+          "fields": "/^Last30d$/",
           "values": false
         }
-      }
+      },
+      "id": 9203
     },
     {
       "type": "timeseries",
@@ -923,7 +940,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 33
       },
       "targets": [
         {
@@ -1002,7 +1019,8 @@
           "mode": "single",
           "sort": "none"
         }
-      }
+      },
+      "id": 9204
     },
     {
       "type": "table",
@@ -1016,7 +1034,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 42
       },
       "targets": [
         {
@@ -1306,7 +1324,8 @@
             "desc": false
           }
         ]
-      }
+      },
+      "id": 9205
     },
     {
       "collapsed": false,
@@ -1314,7 +1333,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 54
       },
       "id": 10,
       "panels": [],
@@ -1341,7 +1360,7 @@
         "h": 1,
         "w": 1,
         "x": 0,
-        "y": 54
+        "y": 55
       },
       "id": 9010,
       "options": {
@@ -1446,7 +1465,7 @@
         "h": 6,
         "w": 4,
         "x": 1,
-        "y": 54
+        "y": 55
       },
       "id": 11,
       "links": [
@@ -1593,7 +1612,7 @@
         "h": 6,
         "w": 4,
         "x": 5,
-        "y": 54
+        "y": 55
       },
       "id": 12,
       "links": [
@@ -1740,7 +1759,7 @@
         "h": 6,
         "w": 4,
         "x": 9,
-        "y": 54
+        "y": 55
       },
       "id": 13,
       "links": [
@@ -1887,7 +1906,7 @@
         "h": 6,
         "w": 4,
         "x": 13,
-        "y": 54
+        "y": 55
       },
       "id": 14,
       "links": [
@@ -2034,7 +2053,7 @@
         "h": 6,
         "w": 4,
         "x": 17,
-        "y": 54
+        "y": 55
       },
       "id": 15,
       "links": [
@@ -2181,7 +2200,7 @@
         "h": 6,
         "w": 4,
         "x": 0,
-        "y": 60
+        "y": 61
       },
       "id": 16,
       "links": [
@@ -2368,7 +2387,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 67
       },
       "id": 17,
       "links": [
@@ -2438,7 +2457,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 75
+        "y": 76
       },
       "id": 7,
       "panels": [],
@@ -2510,7 +2529,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 76
+        "y": 77
       },
       "id": 8,
       "options": {
@@ -2550,7 +2569,7 @@
         "h": 5,
         "w": 24,
         "x": 0,
-        "y": 88
+        "y": 89
       },
       "id": 9,
       "options": {
@@ -2566,7 +2585,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 93
+        "y": 94
       },
       "id": 100,
       "panels": [
@@ -8180,7 +8199,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 94
+        "y": 95
       },
       "id": 141,
       "panels": [
@@ -9509,7 +9528,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 95
+        "y": 96
       },
       "id": 151,
       "panels": [
@@ -10138,7 +10157,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 96
+        "y": 97
       },
       "id": 156,
       "panels": [
@@ -10347,7 +10366,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 97
+        "y": 98
       },
       "id": 158,
       "panels": [
@@ -10556,7 +10575,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 98
+        "y": 99
       },
       "id": 160,
       "panels": [
@@ -11045,7 +11064,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 99
+        "y": 100
       },
       "id": 164,
       "panels": [
@@ -11451,9 +11470,10 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 100
+        "y": 101
       },
-      "panels": []
+      "panels": [],
+      "id": 9206
     },
     {
       "type": "text",
@@ -11462,12 +11482,13 @@
         "h": 14,
         "w": 8,
         "x": 0,
-        "y": 101
+        "y": 102
       },
       "options": {
         "mode": "markdown",
         "content": "\n## Using GenAI Hub well\n\n**Pick the smallest model that does the job.** Capability and price differ by roughly 5x\nbetween tiers. Try the smaller model first and only move up if quality genuinely falls short.\n\n**Reuse your system prompt.** If the same instructions lead every request, prompt caching\nmakes repeat reads about **10x cheaper** than fresh input on every model. It pays back only\nwhen the cached content is actually reused, so cache stable instructions - not per-user text.\n\n**Ask for shorter answers.** Generated tokens cost around **5x** what input tokens cost.\nSetting a sensible `max_tokens` and asking for concise output is usually the single biggest\nsaving available.\n\n**Retrieve, don't stuff.** Embeddings cost around **EUR 0.10 per 1M tokens**. Searching a\nvector index and passing a few relevant passages is far cheaper than pasting whole documents\ninto every prompt.\n\n**Watch long context.** Very large prompts move onto a long-context meter charged at about\n**2x** the standard input rate. Trimming a prompt back under the threshold halves that cost.\n\n**Check the retirement schedule** on this page before pinning a model version, so you are not\nmigrating under time pressure.\n"
-      }
+      },
+      "id": 9207
     },
     {
       "type": "text",
@@ -11476,12 +11497,13 @@
         "h": 14,
         "w": 8,
         "x": 8,
-        "y": 101
+        "y": 102
       },
       "options": {
         "mode": "markdown",
         "content": "\n## What things cost\n\nActual blended rates, **EUR per 1,000,000 tokens**, from Azure billing. Use them to sanity-check\ndesign choices before you build.\n\n| Model | Input | Output | Cached input |\n|---|---|---|---|\n| Claude Opus 4.8 | 4.27 | 21.36 | 0.43 |\n| Claude Sonnet 4.6 | 2.54 | 12.71 | 0.25 |\n| Claude Haiku 4.5 | 0.86 | 4.29 | 0.09 |\n| GPT-5 family (avg) | 1.68 | 7.78 | 0.32 |\n| GPT-5.4 | 1.54 | 9.25 | 0.15 |\n| GPT-5.4-mini | 0.47 | 2.78 | 0.05 |\n| Kimi K2.6 | 0.48 | 2.16 | 0.10 |\n\n**Three things this table tells you**\n\n1. **Output dominates.** Opus output is 5x its input. A chatty prompt is cheap; a chatty\n   *answer* is not.\n2. **Tier choice matters more than prompt tuning.** Haiku to Opus is a 5x jump on both input\n   and output. GPT-5.4-mini is roughly 3x cheaper than GPT-5.4.\n3. **Caching is the best lever you are probably not using.** Cached input runs about 10% of\n   normal input everywhere. Writing to cache costs slightly more than a normal input token,\n   so it wins on reuse, not on one-offs.\n"
-      }
+      },
+      "id": 9208
     },
     {
       "type": "text",
@@ -11490,12 +11512,13 @@
         "h": 14,
         "w": 8,
         "x": 16,
-        "y": 101
+        "y": 102
       },
       "options": {
         "mode": "markdown",
         "content": "\n## When something looks wrong\n\n**You get HTTP 429.** You are being rate limited. Back off exponentially and retry - do not\nretry immediately in a tight loop. The platform may already be steering your traffic to\nanother region on your behalf.\n\n**Responses feel slower than usual.** Requests can be served from a different region when the\nprimary is busy or degraded. This is deliberate and keeps you serving rather than failing.\nDo not assume a fixed region.\n\n**Every request fails with HTTP 400.** Check your model deployment name first. The most common\ncause is a name that does not exist - including template placeholders that were never\nsubstituted. A wrong name fails at the gateway before it ever reaches a model.\n\n**A capability shows degraded above.** No action needed from you. Check the incident table at\nthe top for the current advisory and expected resolution.\n\n**Before raising a ticket**, please include: the model name you called, an approximate\ntimestamp, the HTTP status you received, and your application or subscription name. That is\nusually enough to find the request in the logs immediately.\n"
-      }
+      },
+      "id": 9209
     }
   ],
   "refresh": "5m",

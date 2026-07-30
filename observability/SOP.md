@@ -615,6 +615,36 @@ tech=re.compile(r'TileColor|HealthScore|TileName|_CL\b|_s\b|responseCode|apiId',
 PY
 ```
 
+
+### Share query results instead of repeating them
+
+The page-wide pattern: **one panel runs the query, others read its result** via the
+`-- Dashboard --` datasource with `panelId`. Grafana executes the source query once and
+every referencing panel renders from the same frame.
+
+Applied here:
+
+| Source | Consumers |
+|---|---|
+| Panel `9000` (per-model status) | 67 provider tiles + the searchable table |
+| Panel `9101` (rolling availability, hidden 1x1) | the 24h / 7d / 30d tiles |
+| `Overall Service Status` | the top banner |
+
+Query count on this page across the session: **15 -> 13 -> 10**.
+
+Two mechanics worth knowing:
+
+- A referencing panel selects its column with `reduceOptions.fields`, e.g. `/^Last7d$/`.
+  The source can therefore return several values in one row and feed several tiles.
+- **Panel ids must be unique.** A copied panel keeps the original's `id`, which silently
+  breaks `panelId` references - the banner was accidentally created as a duplicate `id: 1`
+  alongside `Overall Service Status`. Always assign a fresh id when cloning a panel, and
+  check `len(ids) == len(set(ids))` before deploying.
+
+Do not consolidate the remaining pre-existing tiles (`Gateway Availability`,
+`Gateway Throttling Rate`) without a reason - they are proven, and rewriting working
+consumer-facing panels to save one query each is a poor trade.
+
 ### Still open for this page
 
 - An onboarding pointer — new users land here first and there is nothing telling them how
